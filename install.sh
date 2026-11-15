@@ -28,7 +28,7 @@ fi
 zeleno "adb spreman"
 
 # ---- 2. GitHub repo (odakle se preuzima APK) --------------------------
-REPO="${EKRAN_REPO:-}"
+REPO="${EKRAN_REPO:-knjigovodstvenikalkulatori/egcoeui9if}"
 [ -z "$REPO" ] && [ -f .ekran_repo ] && REPO="$(cat .ekran_repo)"
 if [ -z "$REPO" ]; then
   read -r -p "GitHub repo (npr. korisnik/ekran-launcher): " REPO
