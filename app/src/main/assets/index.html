@@ -297,11 +297,12 @@ const NEWS_SRC={
 };
 let SET = loadSettings();
 function loadSettings(){
-  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[]},store.get('settings',{}));
+  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[],tvExtra:[]},store.get('settings',{}));
   if(B){try{
     const c=JSON.parse(B.getConfig()||'{}');
     if(c&&c._ts&&c._ts!==s._cfgts){
       ['city','tmdb','m3u'].forEach(k=>{if(typeof c[k]==='string'&&c[k].trim())s[k]=c[k].trim()});
+      if(Array.isArray(c.tv))s.tvExtra=c.tv.filter(x=>x&&x.u).map(x=>({n:String(x.n||'Kanal'),u:String(x.u),l:String(x.l||''),g:String(x.g||'Moji kanali')}));
       if(Array.isArray(c.youtube))c.youtube.forEach(q=>{q=String(q).trim();if(q&&!s.channels.some(x=>x.q===q))s.channels.push({q,id:null,name:q})});
       s._cfgts=c._ts;store.set('settings',s);
     }
@@ -374,7 +375,7 @@ const strip=h=>{const d=document.createElement('div');d.innerHTML=h||'';return (
 /* =====================================================================
    PODACI
    ===================================================================== */
-const D={apps:[],history:store.get('history',[]),live:store.get('liveCache',[]),films:[],yt:store.get('ytCache',[]),news:store.get('newsCache',[]),stremio:false};
+const D={apps:[],history:store.get('history',[]),live:(store.get('settings',{}).tvExtra||[]).concat(store.get('liveList',[])),films:[],yt:store.get('ytCache',[]),news:store.get('newsCache',[]),stremio:false};
 
 /* ----- aplikacije ----- */
 const g=(a,b)=>`linear-gradient(145deg,${a},${b})`;
@@ -588,10 +589,19 @@ function parseM3U(t){
 }
 async function loadLive(force){
   if(DEMO){D.live=['BHT 1','FTV','N1 BiH','Hayat','TV1','OBN','Face TV','Al Jazeera Balkans','RTRS','Nova BH','Pink BH','Sport Klub'].map((n,i)=>({n,l:'',g:'BiH',u:'demo'+i}));return}
-  if(!SET.m3u){D.live=[];return}
-  if(!force&&D.live.length&&Date.now()-store.get('liveTs',0)<6*3600e3)return;
-  try{const t=await net(SET.m3u);const list=parseM3U(t);if(list.length){D.live=list;store.set('liveCache',list.length<6000?list:list.slice(0,6000));store.set('liveTs',Date.now());if(force)toast(`Učitano ${list.length} kanala`)}else if(force)toast('M3U lista je prazna')}
-  catch(e){if(force)toast('M3U link se ne može učitati')}
+  const extra=(SET.tvExtra||[]).map(x=>Object.assign({g:'Moji kanali',l:''},x));
+  if(!SET.m3u){D.live=extra;return}
+  let list=store.get('liveList',null);
+  if(force||!list||store.get('liveSrc','')!==SET.m3u||Date.now()-store.get('liveTs',0)>6*3600e3){
+    try{
+      const t=await net(SET.m3u);
+      // .m3u8 s #EXT-X- oznakama je jedan stream (jedan kanal), ne lista kanala
+      list=/#EXT-X-(TARGETDURATION|STREAM-INF|MEDIA-SEQUENCE|VERSION)/.test(t)?[{n:'Moj kanal',l:'',g:'Moji kanali',u:SET.m3u}]:parseM3U(t);
+      store.set('liveList',list.length<6000?list:list.slice(0,6000));store.set('liveTs',Date.now());store.set('liveSrc',SET.m3u);
+      if(force&&list.length)toast(`Učitano ${list.length+extra.length} kanala`);
+    }catch(e){if(force)toast('M3U link se ne može učitati');list=list||[]}
+  }
+  D.live=extra.concat(list||[]);
 }
 function liveOrdered(){
   const fav=SET.favLive.map(u=>D.live.find(c=>c.u===u)).filter(Boolean);

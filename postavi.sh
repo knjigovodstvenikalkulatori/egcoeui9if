@@ -6,6 +6,8 @@
 #   bash postavi.sh tmdb "TMDB_API_KLJUC"
 #   bash postavi.sh grad "Sarajevo"
 #   bash postavi.sh kanal "@imekanala"        (dodaje YouTube kanal)
+#   bash postavi.sh tv "Ime kanala" "http://…/index.m3u8"   (dodaje jedan TV kanal)
+#   bash postavi.sh tv-obrisi "Ime kanala"     (briše taj TV kanal)
 #   bash postavi.sh                            (samo ponovo pošalje config.json)
 # =====================================================================
 set -e
@@ -19,18 +21,21 @@ if ! command -v "$ADB" >/dev/null 2>&1 && [ ! -x "$ADB" ]; then
 fi
 [ -f config.json ] || echo '{}' > config.json
 
-KEY="$1"; VAL="$2"
+KEY="$1"; VAL="$2"; VAL2="$3"
 if [ -n "$KEY" ]; then
   case "$KEY" in
-    m3u|tmdb|grad|kanal) ;;
-    *) echo "Nepoznato: $KEY (koristi: m3u, tmdb, grad, kanal)"; exit 1;;
+    m3u|tmdb|grad|kanal|tv|tv-obrisi) ;;
+    *) echo "Nepoznato: $KEY (koristi: m3u, tmdb, grad, kanal, tv, tv-obrisi)"; exit 1;;
   esac
   [ -z "$VAL" ] && read -r -p "Unesi vrijednost za $KEY: " VAL
-  K="$KEY" V="$VAL" perl -MJSON::PP -e '
+  if [ "$KEY" = "tv" ] && [ -z "$VAL2" ]; then read -r -p "Link kanala (.m3u8): " VAL2; fi
+  K="$KEY" V="$VAL" V2="$VAL2" perl -MJSON::PP -e '
     local $/; open my $f, "<", "config.json"; my $t = <$f>; close $f;
     my $j = eval { decode_json($t) } || {};
     my ($k, $v) = ($ENV{K}, $ENV{V});
-    if ($k eq "kanal") { $j->{youtube} ||= []; push @{$j->{youtube}}, $v unless grep { $_ eq $v } @{$j->{youtube}}; }
+    if ($k eq "tv") { $j->{tv} = [ grep { $_->{n} ne $v } @{ $j->{tv} || [] } ]; push @{$j->{tv}}, { n => $v, u => $ENV{V2} }; }
+    elsif ($k eq "tv-obrisi") { $j->{tv} = [ grep { $_->{n} ne $v } @{ $j->{tv} || [] } ]; }
+    elsif ($k eq "kanal") { $j->{youtube} ||= []; push @{$j->{youtube}}, $v unless grep { $_ eq $v } @{$j->{youtube}}; }
     else { $j->{ $k eq "grad" ? "city" : $k } = $v; }
     open my $o, ">", "config.json"; print $o JSON::PP->new->canonical->encode($j); close $o;'
   echo "✓ Sačuvano u config.json"
