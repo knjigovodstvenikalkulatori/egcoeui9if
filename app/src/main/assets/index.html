@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ekran — TV launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--pad:120px;--ease:cubic-bezier(.2,.8,.2,1);--glass:rgba(255,255,255,.12)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;-webkit-font-smoothing:antialiased;user-select:none}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;background:#04050a;transform-origin:center}
+
+/* pozadina */
+.bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.06);transition:opacity 1.2s var(--ease),transform 9s linear;will-change:opacity,transform}
+.bg.on{opacity:1;transform:scale(1)}
+.shade{position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(90deg,rgba(4,5,10,.94) 0%,rgba(4,5,10,.7) 32%,rgba(4,5,10,.1) 68%,rgba(4,5,10,0) 100%),
+  linear-gradient(0deg,rgba(4,5,10,1) 0%,rgba(4,5,10,.88) 26%,rgba(4,5,10,0) 58%),
+  linear-gradient(180deg,rgba(4,5,10,.6) 0%,rgba(4,5,10,0) 22%)}
+
+/* gornja traka */
+.top{position:absolute;top:52px;left:var(--pad);right:var(--pad);display:flex;justify-content:space-between;align-items:center;z-index:6}
+.hello{font-size:28px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:14px}
+.hello .orb{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 200deg,#6ee7ff,#8b5cf6,#f472b6,#6ee7ff);box-shadow:0 0 18px rgba(139,92,246,.8)}
+.tright{display:flex;align-items:center;gap:44px}
+.weather{display:flex;align-items:center;gap:16px;opacity:0;transition:opacity .6s}
+.weather.on{opacity:1}
+.weather svg{width:52px;height:52px}
+.weather .wt{font-size:46px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.weather .wd{font-size:19px;color:rgba(255,255,255,.62);margin-top:6px;white-space:nowrap}
+.wsep{width:1px;height:58px;background:rgba(255,255,255,.18)}
+.clock{text-align:right}
+.clock .t{font-size:46px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
+.clock .d{font-size:19px;color:rgba(255,255,255,.62);margin-top:6px}
+.gear{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);transition:transform .25s var(--ease),background .25s,color .25s;cursor:pointer}
+.gear svg{width:30px;height:30px}
+.gear.focus{background:#fff;color:#05060a;transform:scale(1.12)}
+
+/* hero */
+.hero,.info{position:absolute;left:var(--pad);z-index:5;transition:opacity .5s var(--ease),transform .6s var(--ease)}
+.hero{top:232px;width:1180px}
+.kicker{display:flex;gap:12px;align-items:center;font-size:19px;font-weight:700;color:rgba(255,255,255,.72);text-transform:uppercase;letter-spacing:.16em}
+.kicker .pill{background:var(--glass);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 14px;letter-spacing:.1em;font-size:16px;color:#fff}
+.hero .title{font-size:116px;font-weight:800;letter-spacing:-.05em;line-height:.95;margin:24px 0 24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero .title.long{font-size:72px;white-space:normal;line-height:1.02;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.meta{font-size:22px;color:rgba(255,255,255,.75);display:flex;gap:14px;align-items:center;font-weight:500}
+.meta .sep{width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.5)}
+.meta .badge{border:1.5px solid rgba(255,255,255,.55);border-radius:6px;padding:1px 8px;font-size:15px;font-weight:700}
+.meta .star{color:#ffd166}
+.desc{font-size:24px;line-height:1.45;color:rgba(255,255,255,.72);margin-top:18px;max-width:800px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.actions{display:flex;gap:18px;margin-top:38px;align-items:center;min-height:76px}
+.btn{height:70px;border-radius:35px;padding:0 40px;display:flex;align-items:center;gap:14px;font-size:25px;font-weight:700;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.14);transition:transform .28s var(--ease),background .28s,color .28s,box-shadow .28s;cursor:pointer;white-space:nowrap}
+.btn svg{width:26px;height:26px;flex:none}
+.btn.round{width:70px;padding:0;justify-content:center}
+.btn.focus{background:#fff;color:#05060a;transform:scale(1.09);box-shadow:0 20px 50px rgba(0,0,0,.55)}
+.btn.dis{opacity:.4}
+.dots{display:flex;gap:10px;margin-top:44px}
+.dots i{width:9px;height:9px;border-radius:5px;background:rgba(255,255,255,.3);transition:width .5s var(--ease),background .5s}
+.dots i.on{width:34px;background:#fff}
+.hero .kicker,.hero .title,.hero .meta,.hero .desc{transition:opacity .45s var(--ease),transform .55s var(--ease)}
+.hero.swap .kicker,.hero.swap .title,.hero.swap .meta,.hero.swap .desc{opacity:0;transform:translateY(14px)}
+
+.info{top:196px;width:1000px;opacity:0;transform:translateY(20px);pointer-events:none}
+.info .title{font-size:76px;font-weight:800;letter-spacing:-.045em;line-height:1.02;margin:18px 0 18px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.info .title.long{font-size:58px}
+.compact .hero{opacity:0;transform:translateY(-40px);pointer-events:none}
+.compact .info{opacity:1;transform:none}
+.info.swap{opacity:0!important;transition-duration:.12s}
+#stage.covered .hero,#stage.covered .info,#stage.covered .track,#stage.covered .top{opacity:0!important;pointer-events:none}
+.top{transition:opacity .4s}
+
+/* redovi */
+.track{position:absolute;left:0;right:0;top:0;z-index:4;transition:transform .6s var(--ease);will-change:transform}
+.row{position:absolute;left:0;right:0;transition:opacity .45s var(--ease)}
+.row.gone{opacity:0}
+.row h3{font-size:27px;font-weight:700;margin-left:var(--pad);height:40px;margin-bottom:24px;color:rgba(255,255,255,.92);letter-spacing:-.01em;display:flex;align-items:center;gap:14px}
+.row h3 small{font-size:18px;font-weight:600;color:rgba(255,255,255,.45);letter-spacing:0}
+.strip{display:flex;gap:30px;padding-left:var(--pad);transition:transform .5s var(--ease);will-change:transform}
+.card{flex:none;position:relative;transition:transform .32s var(--ease);cursor:pointer}
+.card .img{position:relative;width:100%;border-radius:22px;background-size:cover;background-position:center;overflow:hidden;background-color:#151821;transition:box-shadow .32s var(--ease)}
+.card .img::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 38%);opacity:0;transition:opacity .35s;pointer-events:none}
+.card.focus{transform:scale(1.1);z-index:3}
+.card.focus .img{box-shadow:0 0 0 4px #fff,0 34px 70px rgba(0,0,0,.65)}
+.card.focus .img::after{opacity:1}
+.card.moving .img{box-shadow:0 0 0 4px #ffd166,0 34px 70px rgba(0,0,0,.65)!important}
+.fav{position:absolute;right:12px;top:10px;font-size:22px;color:#ffd166;text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:2}
+
+.app .img,.live .img{display:flex;align-items:center;justify-content:center}
+.app .img svg{width:64px;height:64px}
+.app .img img.banner{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.app .img img.ico{width:96px;height:96px;object-fit:contain}
+.app.glass .img{background:rgba(255,255,255,.1)}
+.app .lbl,.live .lbl{position:absolute;left:-20px;right:-20px;top:calc(100% + 18px);text-align:center;font-size:21px;font-weight:600;opacity:0;transform:translateY(-6px);transition:opacity .25s,transform .3s var(--ease);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.app.focus .lbl,.live.focus .lbl{opacity:1;transform:none}
+.live .img{background:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.08)}
+.live .img img{max-width:62%;max-height:58%;object-fit:contain}
+.live .img .cname{font-size:30px;font-weight:800;letter-spacing:-.02em;text-align:center;padding:0 18px;line-height:1.05}
+.live .img .ldot{position:absolute;left:14px;top:12px;width:10px;height:10px;border-radius:50%;background:#ff3045;box-shadow:0 0 10px #ff3045}
+
+.vid .cap{position:relative;z-index:1;margin-top:18px;transition:opacity .3s}
+.vid .cap b{display:block;font-size:22px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vid .cap span{display:block;font-size:18px;color:rgba(255,255,255,.55);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vid .cap{opacity:.7}.row.active .vid .cap{opacity:.85}.card.focus .cap{opacity:1!important}
+.dur{position:absolute;right:14px;bottom:14px;background:rgba(0,0,0,.72);border-radius:8px;padding:4px 9px;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+.thumbword{position:absolute;left:24px;bottom:22px;right:90px;font-size:44px;font-weight:900;letter-spacing:-.03em;line-height:.95;text-shadow:0 4px 24px rgba(0,0,0,.5);text-transform:uppercase}
+.prog{position:absolute;left:18px;right:18px;bottom:16px;height:6px;border-radius:3px;background:rgba(255,255,255,.28);overflow:hidden}
+.prog i{display:block;height:100%;background:#fff;border-radius:3px}
+.news .src{position:absolute;left:16px;top:14px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);border-radius:8px;padding:4px 10px;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.news .cap b{-webkit-line-clamp:3}
+
+.poster .img::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75) 0%,rgba(0,0,0,0) 50%)}
+.poster .ptitle{position:absolute;left:20px;right:20px;bottom:22px;font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.poster .ptitle small{display:block;font-size:15px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:8px}
+.poster.real .ptitle,.poster.real .img::before{display:none}
+.rate{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.65);border-radius:8px;padding:3px 9px;font-size:16px;font-weight:800;color:#ffd166}
+
+/* slojevi (overlay) */
+.layer{position:absolute;inset:0;z-index:20;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
+.layer.on{opacity:1;pointer-events:auto}
+.glassbg{background:rgba(8,10,16,.66);backdrop-filter:blur(44px) saturate(1.5);-webkit-backdrop-filter:blur(44px) saturate(1.5)}
+.layer h2{position:absolute;top:70px;left:var(--pad);font-size:52px;font-weight:800;letter-spacing:-.04em}
+.layer h2 small{display:block;font-size:20px;font-weight:600;letter-spacing:0;color:rgba(255,255,255,.5);margin-top:8px}
+.ghint{position:absolute;top:92px;right:var(--pad);font-size:19px;color:rgba(255,255,255,.5)}
+.gridwrap{position:absolute;top:250px;left:0;right:0;bottom:0;overflow:hidden}
+.grid{position:relative;width:1740px;margin:0 auto;height:100%}
+.grid .card{position:absolute}
+
+/* detalji filma */
+#detail{background:linear-gradient(90deg,rgba(4,5,10,.85),rgba(4,5,10,.2) 70%),linear-gradient(0deg,rgba(4,5,10,.95),rgba(4,5,10,0) 50%)}
+#detail .dbox{position:absolute;left:var(--pad);top:250px;width:1000px}
+#detail .title{font-size:96px;font-weight:800;letter-spacing:-.05em;line-height:1;margin:22px 0}
+#detail .desc{-webkit-line-clamp:5;max-width:900px}
+
+/* meni */
+#menu{background:rgba(0,0,0,.55)}
+.mbox{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:640px;background:rgba(24,26,34,.92);backdrop-filter:blur(30px);border:1px solid rgba(255,255,255,.12);border-radius:34px;padding:40px}
+.mbox h4{font-size:28px;font-weight:800;margin-bottom:24px;letter-spacing:-.02em}
+.mitem{height:72px;border-radius:20px;display:flex;align-items:center;padding:0 28px;font-size:25px;font-weight:600;margin-top:10px;transition:background .2s,color .2s,transform .2s var(--ease)}
+.mitem.focus{background:#fff;color:#05060a;transform:scale(1.03)}
+
+/* player */
+#player{background:#000}
+#ytWrap,#ytWrap iframe{position:absolute;inset:0;width:1920px;height:1080px;border:0}
+#plBg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.4)}
+.spin{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px;border-radius:50%;border:5px solid rgba(255,255,255,.2);border-top-color:#fff;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.osd{position:absolute;left:0;right:0;bottom:0;padding:120px var(--pad) 64px;background:linear-gradient(0deg,rgba(0,0,0,.85),rgba(0,0,0,0));transition:opacity .4s;z-index:3}
+.osd.hide{opacity:0}
+.osd .ot{font-size:40px;font-weight:800;letter-spacing:-.03em}
+.osd .oc{font-size:21px;color:rgba(255,255,255,.65);margin-top:6px}
+.obar{display:flex;align-items:center;gap:24px;margin-top:28px;font-size:20px;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.8)}
+.obar .bar{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}
+.obar .bar i{display:block;height:100%;background:#fff;width:0}
+.ohint{margin-top:20px;font-size:17px;color:rgba(255,255,255,.45)}
+.pstate{position:absolute;left:50%;top:50%;width:140px;height:140px;margin:-70px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .3s;z-index:3}
+.pstate.on{opacity:1}
+.pstate svg{width:60px;height:60px}
+
+/* postavke */
+#settings .sbox{position:absolute;top:220px;left:var(--pad);right:var(--pad);bottom:40px;overflow:hidden}
+.slist{transition:transform .4s var(--ease)}
+.sh{font-size:18px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.45);margin:34px 0 14px}
+.sh:first-child{margin-top:0}
+.si{display:flex;align-items:center;gap:30px;min-height:84px;border-radius:24px;padding:12px 30px;background:rgba(255,255,255,.06);margin-bottom:12px;transition:background .2s,transform .25s var(--ease)}
+.si.focus{background:rgba(255,255,255,.18);box-shadow:0 0 0 3px #fff;transform:scale(1.01)}
+.si .sl{flex:none;width:480px;font-size:24px;font-weight:600}
+.si .sl small{display:block;font-size:17px;font-weight:500;color:rgba(255,255,255,.5);margin-top:4px}
+.si input{flex:1;height:58px;border-radius:16px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:#fff;font:500 23px Inter,system-ui,sans-serif;padding:0 20px;outline:none}
+.si input:focus{border-color:#fff;background:rgba(0,0,0,.6)}
+.si .sv{flex:1;font-size:22px;color:rgba(255,255,255,.7);text-align:right}
+.tog{width:76px;height:42px;border-radius:21px;background:rgba(255,255,255,.2);position:relative;margin-left:auto;transition:background .2s}
+.tog::after{content:"";position:absolute;left:5px;top:5px;width:32px;height:32px;border-radius:50%;background:#fff;transition:transform .25s var(--ease)}
+.tog.on{background:#34c759}.tog.on::after{transform:translateX(34px)}
+
+.toast{position:absolute;left:50%;bottom:70px;transform:translate(-50%,30px);background:rgba(20,22,30,.86);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.14);padding:18px 30px;border-radius:999px;font-size:22px;font-weight:600;opacity:0;transition:all .4s var(--ease);z-index:60;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.hint{position:absolute;left:50%;transform:translateX(-50%);top:16px;z-index:30;font-size:16px;color:rgba(255,255,255,.45);display:flex;gap:10px;align-items:center;transition:opacity .6s}
+.hint kbd{font-family:inherit;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px 8px;color:rgba(255,255,255,.75)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="bg" id="bgA"></div>
+  <div class="bg" id="bgB"></div>
+  <div class="shade"></div>
+
+  <div class="top">
+    <div class="hello"><span class="orb"></span><span id="greet">Dobro veče</span></div>
+    <div class="tright">
+      <div class="weather" id="weather"><span id="wIco"></span><div><div class="wt" id="wTemp"></div><div class="wd" id="wDesc"></div></div></div>
+      <div class="wsep"></div>
+      <div class="clock"><div class="t" id="time">--:--</div><div class="d" id="date"></div></div>
+      <div class="gear" id="gear"><svg viewBox="0 0 24 24"><path d="M12 8.6a3.4 3.4 0 100 6.8 3.4 3.4 0 000-6.8z" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 13.5l1.6 1.2-1.8 3.1-1.9-.7a7 7 0 01-1.9 1.1L15 20h-3.6l-.4-1.9a7 7 0 01-1.9-1.1l-1.9.7-1.8-3.1 1.6-1.2a7 7 0 010-2.2L5.4 10l1.8-3.1 1.9.7A7 7 0 0111 6.5L11.4 4.6H15l.4 1.9a7 7 0 011.9 1.1l1.9-.7 1.8 3.1-1.6 1.2a7 7 0 010 2.3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="hero" id="hero">
+    <div class="kicker" id="hKick"></div>
+    <div class="title" id="hTitle"></div>
+    <div class="meta" id="hMeta"></div>
+    <div class="desc" id="hDesc"></div>
+    <div class="actions" id="hActions"></div>
+    <div class="dots" id="hDots"></div>
+  </div>
+
+  <div class="info" id="info">
+    <div class="kicker" id="iKick"></div>
+    <div class="title" id="iTitle"></div>
+    <div class="meta" id="iMeta"></div>
+    <div class="desc" id="iDesc"></div>
+  </div>
+
+  <div class="track" id="track"></div>
+
+  <!-- mreža: sve aplikacije / svi kanali -->
+  <div class="layer glassbg" id="gridL">
+    <h2><span id="gTitle"></span><small id="gSub"></small></h2>
+    <div class="ghint">Drži OK = dodaj / ukloni ★</div>
+    <div class="gridwrap"><div class="grid" id="grid"></div></div>
+  </div>
+
+  <!-- detalji filma -->
+  <div class="layer" id="detail">
+    <div class="dbox">
+      <div class="kicker" id="dKick"></div>
+      <div class="title" id="dTitle"></div>
+      <div class="meta" id="dMeta"></div>
+      <div class="desc" id="dDesc"></div>
+      <div class="actions" id="dActions"></div>
+    </div>
+  </div>
+
+  <!-- YouTube player -->
+  <div class="layer" id="player">
+    <div id="plBg"></div><div class="spin" id="plSpin"></div>
+    <div id="ytWrap"><div id="ytFrame"></div></div>
+    <div class="pstate" id="pState"></div>
+    <div class="osd" id="osd">
+      <div class="ot" id="oTitle"></div><div class="oc" id="oChan"></div>
+      <div class="obar"><span id="oCur">0:00</span><div class="bar"><i id="oBar"></i></div><span id="oDur">0:00</span></div>
+      <div class="ohint">OK = pauza · ← → = premotaj 10 s · drži OK = otvori u YouTube aplikaciji · Nazad = izlaz</div>
+    </div>
+  </div>
+
+  <!-- postavke -->
+  <div class="layer glassbg" id="settings">
+    <h2>Postavke<small>Ekran launcher</small></h2>
+    <div class="sbox"><div class="slist" id="slist"></div></div>
+  </div>
+
+  <!-- meni -->
+  <div class="layer" id="menu"><div class="mbox"><h4 id="mTitle"></h4><div id="mItems"></div></div></div>
+
+  <div class="toast" id="toast"></div>
+  <div class="hint" id="hint"><span>Pregled:</span><kbd>← → ↑ ↓</kbd><kbd>Enter</kbd><span>= OK (drži = opcije)</span><kbd>Esc</kbd><span>= nazad</span></div>
+</div>
+
+<script>
+/* =====================================================================
+   EKRAN — TV launcher (UI)
+   Na TV-u ovo prikazuje Android aplikacija i daje window.LauncherBridge.
+   Mrežni zahtjevi idu kroz /net?u=... (Android ih šalje, bez CORS-a).
+   U browseru (pregled) radi demo režim s izmišljenim podacima.
+   ===================================================================== */
+const B = window.LauncherBridge || null;
+const DEMO = !B;
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k,d){try{const v=localStorage.getItem('ek_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('ek_'+k,JSON.stringify(v))}catch(e){}}
+};
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)}
+
+async function net(url,json){
+  if(DEMO) throw new Error('demo');
+  const r=await fetch('/net?u='+encodeURIComponent(url));
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return json?r.json():r.text();
+}
+
+/* ---------- postavke ---------- */
+const NEWS_SRC={
+  google:{name:'Google vijesti BiH',url:'https://news.google.com/rss?hl=bs&gl=BA&ceid=BA:bs'},
+  n1:{name:'N1 BiH',url:'https://n1info.ba/feed/'},
+  klix:{name:'Klix.ba',url:'https://www.klix.ba/rss'}
+};
+let SET = loadSettings();
+function loadSettings(){
+  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[]},store.get('settings',{}));
+  if(B){try{
+    const c=JSON.parse(B.getConfig()||'{}');
+    if(c&&c._ts&&c._ts!==s._cfgts){
+      ['city','tmdb','m3u'].forEach(k=>{if(typeof c[k]==='string'&&c[k].trim())s[k]=c[k].trim()});
+      if(Array.isArray(c.youtube))c.youtube.forEach(q=>{q=String(q).trim();if(q&&!s.channels.some(x=>x.q===q))s.channels.push({q,id:null,name:q})});
+      s._cfgts=c._ts;store.set('settings',s);
+    }
+  }catch(e){}}
+  return s;
+}
+const saveSet=()=>store.set('settings',SET);
+window.launcherConfig=()=>{SET=loadSettings();refreshAll()};
+
+/* ---------- demo slike ---------- */
+function hash(s){let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const PAL=[['#04121a','#0f5c6e','#1fa3a8','#e8a257'],['#060a14','#1d3b6b','#5b8fd9','#c9d8f0'],['#120604','#7a1d0e','#e0582a','#f2b45a'],['#0a0614','#3d1a6e','#b04ad9','#ff9ad5'],['#03100a','#0f4a33','#3fae7a','#d7f0a0'],['#14060c','#8a1747','#ff5e62','#ffb36b'],['#0c0a06','#4a3a18','#c9a24a','#f5e3b0'],['#050814','#16306e','#2fd4ff','#8a5cff']];
+const palOf=k=>PAL[hash(k)%PAL.length];
+const artCache={};
+function art(key,kind,W=1600,H=900,pal){
+  pal=pal||palOf(key);const k=key+kind+W;if(artCache[k])return artCache[k];
+  const r=rng(hash(key));let blobs='';
+  for(let i=0;i<5;i++)blobs+=`<circle cx="${(r()*W)|0}" cy="${(r()*H*.75)|0}" r="${(W*.16+r()*W*.22)|0}" fill="${pal[1+i%3]}" opacity="${(.55+r()*.4).toFixed(2)}"/>`;
+  let scene='';
+  if(kind!=='yt'){
+    const sx=W*(.5+r()*.35),sy=H*(.32+r()*.12),sr=W*(.018+r()*.014);
+    scene+=`<circle cx="${sx}" cy="${sy}" r="${sr*6}" fill="${pal[3]}" opacity=".55" filter="url(#b2)"/><circle cx="${sx}" cy="${sy}" r="${sr*1.8}" fill="#fff" opacity=".35" filter="url(#b3)"/><circle cx="${sx}" cy="${sy}" r="${sr}" fill="#fffaf0"/>`;
+    [.62,.74,.86].forEach((base,li)=>{let d=`M0 ${H}`;const n=9+li*3;for(let i=0;i<=n;i++)d+=` L${(W*i/n)|0} ${(H*base-r()*H*(.22-li*.05))|0}`;scene+=`<path d="${d} L${W} ${H} Z" fill="${pal[0]}" opacity="${[.45,.7,.92][li]}"/>`});
+  }else{
+    scene+=`<circle cx="${W*(.55+r()*.3)}" cy="${H*(.25+r()*.4)}" r="${H*.32}" fill="none" stroke="#fff" stroke-opacity=".2" stroke-width="${H*.05}"/>`;
+  }
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice"><defs><filter id="b" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${W*.07}"/></filter><filter id="b2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${W*.03}"/></filter><filter id="b3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${W*.008}"/></filter><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/></filter></defs><rect width="100%" height="100%" fill="${pal[0]}"/><g filter="url(#b)">${blobs}</g>${scene}<rect width="100%" height="100%" filter="url(#n)"/></svg>`;
+  return artCache[k]=`url('data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg).replace(/'/g,'%27')}')`;
+}
+const bgv=x=>!x?'':(x.startsWith('url(')?x:`url("${x.replace(/"/g,'%22')}")`);
+
+/* ---------- ikone ---------- */
+const ICONS={
+ play:'<path d="M8.5 5.5v13l10.5-6.5z" fill="currentColor"/>',
+ film:'<rect x="4" y="5" width="16" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 5v14M16 5v14M4 9.5h4M4 14.5h4M16 9.5h4M16 14.5h4" stroke="currentColor" stroke-width="1.8"/>',
+ music:'<path d="M9 17.5V7l10-2v10.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="17.5" r="2.3" fill="currentColor"/><circle cx="17" cy="15.5" r="2.3" fill="currentColor"/>',
+ star:'<path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.3L12 16l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6z" fill="currentColor"/>',
+ globe:'<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4 12h16M12 4c2.5 2.6 2.5 13.4 0 16M12 4c-2.5 2.6-2.5 13.4 0 16" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+ gear:'<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2.1 2.1M15.9 15.9L18 18M6 18l2.1-2.1M15.9 8.1L18 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+ grid:'<g fill="currentColor"><rect x="5" y="5" width="5.5" height="5.5" rx="1.6"/><rect x="13.5" y="5" width="5.5" height="5.5" rx="1.6"/><rect x="5" y="13.5" width="5.5" height="5.5" rx="1.6"/><rect x="13.5" y="13.5" width="5.5" height="5.5" rx="1.6"/></g>',
+ tv:'<rect x="3.5" y="5.5" width="17" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 20h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+ cloud:'<path d="M7.5 18a4 4 0 01-.4-8 5.5 5.5 0 0110.6 1.5A3.3 3.3 0 0117 18z" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ bag:'<path d="M5.5 8.5h13l-1 11h-11z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 8.5V7a3 3 0 016 0v1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ folder:'<path d="M4 7.5a2 2 0 012-2h4l2 2h6a2 2 0 012 2V17a2 2 0 01-2 2H6a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ trailer:'<rect x="3.5" y="5.5" width="17" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 9.5v5l4-2.5z" fill="currentColor"/>',
+ info:'<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="7.8" r="1.3" fill="currentColor"/>',
+ down:'<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+ pause:'<rect x="6.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/><rect x="13.5" y="5" width="4" height="14" rx="1.2" fill="currentColor"/>'
+};
+const icon=(n,fg)=>`<svg viewBox="0 0 24 24" style="color:${fg||'currentColor'}">${ICONS[n]||ICONS.grid}</svg>`;
+const WX={sun:'<circle cx="12" cy="12" r="4.2" fill="#ffd166"/><g stroke="#ffd166" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.8v2.2M12 19v2.2M2.8 12h2.2M19 12h2.2M5.5 5.5l1.6 1.6M16.9 16.9l1.6 1.6M5.5 18.5l1.6-1.6M16.9 7.1l1.6-1.6"/></g>',
+ moon:'<path d="M15.5 3.8a8.3 8.3 0 104.7 13.4A7 7 0 0115.5 3.8z" fill="#cdd6ff"/>',
+ part:'<circle cx="9" cy="9" r="3.6" fill="#ffd166"/><path d="M8.5 19.5a3.8 3.8 0 01-.3-7.6 5.2 5.2 0 019.9 1.4 3.1 3.1 0 01-.6 6.2z" fill="#fff"/>',
+ cloud:'<path d="M7.5 19a4.2 4.2 0 01-.4-8.4 5.8 5.8 0 0111.1 1.6 3.4 3.4 0 01-.7 6.8z" fill="#e6e9f2"/>',
+ fog:'<path d="M4 9h16M6 13h12M4 17h16" stroke="#e6e9f2" stroke-width="2" stroke-linecap="round"/>',
+ rain:'<path d="M7.5 15a4.2 4.2 0 01-.4-8.4 5.8 5.8 0 0111.1 1.6 3.4 3.4 0 01-.7 6.8z" fill="#e6e9f2"/><path d="M9 17.5l-1 2.5M13 17.5l-1 2.5M17 17.5l-1 2.5" stroke="#6ec3ff" stroke-width="1.8" stroke-linecap="round"/>',
+ snow:'<path d="M7.5 15a4.2 4.2 0 01-.4-8.4 5.8 5.8 0 0111.1 1.6 3.4 3.4 0 01-.7 6.8z" fill="#e6e9f2"/><g fill="#fff"><circle cx="9" cy="19" r="1.1"/><circle cx="13" cy="20.5" r="1.1"/><circle cx="17" cy="19" r="1.1"/></g>',
+ storm:'<path d="M7.5 14a4.2 4.2 0 01-.4-8.4 5.8 5.8 0 0111.1 1.6 3.4 3.4 0 01-.7 6.8z" fill="#c5cad6"/><path d="M12.5 13l-2.5 4h3l-2 4" fill="none" stroke="#ffd166" stroke-width="1.8" stroke-linejoin="round"/>'};
+
+/* ---------- format ---------- */
+const DANI=['nedjelja','ponedjeljak','utorak','srijeda','četvrtak','petak','subota'];
+const MJ=['januar','februar','mart','april','maj','juni','juli','august','septembar','oktobar','novembar','decembar'];
+function ago(d){const s=(Date.now()-new Date(d).getTime())/1000;if(!isFinite(s))return '';if(s<60)return 'upravo';if(s<3600)return `prije ${Math.floor(s/60)} min`;if(s<86400){const h=Math.floor(s/3600);return `prije ${h} ${h===1?'sat':h<5?'sata':'sati'}`}const dd=Math.floor(s/86400);if(dd<7)return `prije ${dd} ${dd===1?'dan':'dana'}`;if(dd<30){const w=Math.floor(dd/7);return `prije ${w} ${w===1?'sedmicu':'sedmice'}`}const m=Math.floor(dd/30);return `prije ${m} ${m===1?'mjesec':'mjeseci'}`}
+function views(n){n=+n;if(!n)return '';if(n>=1e6)return (n/1e6).toFixed(1).replace('.',',').replace(',0','')+' mil. pregleda';if(n>=1e3)return Math.round(n/1e3)+' hilj. pregleda';return n+' pregleda'}
+const tfmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+const sepJoin=a=>a.filter(Boolean).map(x=>/^\d+\+$/.test(x)?`<span class="badge">${x}</span>`:/^★/.test(x)?`<span class="star">${x}</span>`:`<span>${esc(x)}</span>`).join('<span class="sep"></span>');
+const strip=h=>{const d=document.createElement('div');d.innerHTML=h||'';return (d.textContent||'').replace(/\s+/g,' ').trim()};
+
+/* =====================================================================
+   PODACI
+   ===================================================================== */
+const D={apps:[],history:store.get('history',[]),live:store.get('liveCache',[]),films:[],yt:store.get('ytCache',[]),news:store.get('newsCache',[]),stremio:false};
+
+/* ----- aplikacije ----- */
+const g=(a,b)=>`linear-gradient(145deg,${a},${b})`;
+const DEMO_APPS=[
+ {pkg:'com.google.android.youtube.tv',label:'YouTube',i:'play',bg:g('#ff4d4d','#c4121e')},
+ {pkg:'com.stremio.one',label:'Stremio',i:'play',bg:g('#7b5bf5','#3d2a9e')},
+ {pkg:'com.netflix.ninja',label:'Netflix',i:'film',bg:g('#2a2a31','#0b0b0e'),fg:'#ff3b48'},
+ {pkg:'com.hbo.max',label:'Max',i:'star',bg:g('#3b3bff','#6a2be0')},
+ {pkg:'com.spotify.tv.android',label:'Spotify',i:'music',bg:g('#2ee36f','#0f9a44')},
+ {pkg:'com.android.chrome',label:'Pregledač',i:'globe',bg:g('#ffffff','#d5d8e0'),fg:'#1b1e27'},
+ {pkg:'com.android.vending',label:'Play trgovina',i:'bag',bg:g('#ffffff','#e3e6ee'),fg:'#1b1e27'},
+ {pkg:'com.android.tv.settings',label:'Postavke TV-a',i:'gear',bg:g('#9a9ca6','#5d5f68')},
+ {pkg:'org.xbmc.kodi',label:'Kodi',i:'cloud',bg:g('#3cc4f0','#1767a8')},
+ {pkg:'org.videolan.vlc',label:'VLC',i:'play',bg:g('#ff9a1f','#e05a00')},
+ {pkg:'files',label:'Datoteke',i:'folder',bg:g('#5ad1b0','#1f8f74')},
+ {pkg:'com.amazon.amazonvideo.livingroom',label:'Prime Video',i:'tv',bg:g('#2aa7ff','#0b5fd8')}
+];
+const PREF_APPS=['com.google.android.youtube.tv','com.stremio.one','com.netflix.ninja','com.hbo.max','com.disney.disneyplus','com.amazon.amazonvideo.livingroom','com.spotify.tv.android','org.xbmc.kodi'];
+function loadApps(){
+  if(DEMO){D.apps=DEMO_APPS;D.stremio=true;}
+  else{try{D.apps=JSON.parse(B.getApps())}catch(e){D.apps=[]}D.stremio=!!B.isInstalled('com.stremio.one')}
+  if(!Array.isArray(SET.favApps)){
+    const have=new Set(D.apps.map(a=>a.pkg));
+    SET.favApps=PREF_APPS.filter(p=>have.has(p));
+    for(const a of D.apps){if(SET.favApps.length>=6)break;if(!SET.favApps.includes(a.pkg))SET.favApps.push(a.pkg)}
+    saveSet();
+  }
+}
+const appBy=pkg=>D.apps.find(a=>a.pkg===pkg);
+function launchApp(a){
+  if(a.pkg==='__all')return openGrid('apps');
+  if(a.pkg==='__live')return openGrid('live');
+  B?B.launch(a.pkg):toast(`Otvaram ${a.label}…`);
+}
+
+/* ----- vrijeme (Open-Meteo, bez ključa) ----- */
+const WMO=c=>c===0?['sun','Vedro']:c<=2?['part','Djelimično oblačno']:c===3?['cloud','Oblačno']:c<=48?['fog','Magla']:c<=57?['rain','Rosulja']:c<=67?['rain','Kiša']:c<=77?['snow','Snijeg']:c<=82?['rain','Pljuskovi']:c<=86?['snow','Snježni pljuskovi']:['storm','Grmljavina'];
+async function loadWeather(){
+  let w;
+  if(DEMO){w={city:'Sarajevo',t:7,code:2,day:0,max:9,min:2}}
+  else{
+    try{
+      let loc=store.get('loc',null);
+      const want=(SET.city||'').trim();
+      if(!loc||loc.q!==want||Date.now()-loc.ts>864e5){
+        if(want){const r=await net(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(want)}&count=1&language=bs`,1);const x=r.results&&r.results[0];if(!x)throw 0;loc={q:want,lat:x.latitude,lon:x.longitude,city:x.name,ts:Date.now()}}
+        else{let x;try{x=await net('https://ipwho.is/',1);loc={q:'',lat:x.latitude,lon:x.longitude,city:x.city,ts:Date.now()}}catch(e){x=await net('http://ip-api.com/json/?fields=city,lat,lon',1);loc={q:'',lat:x.lat,lon:x.lon,city:x.city,ts:Date.now()}}}
+        store.set('loc',loc);
+      }
+      const f=await net(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`,1);
+      w={city:loc.city,t:Math.round(f.current.temperature_2m),code:f.current.weather_code,day:f.current.is_day,max:Math.round(f.daily.temperature_2m_max[0]),min:Math.round(f.daily.temperature_2m_min[0])};
+    }catch(e){return}
+  }
+  let [ic,txt]=WMO(w.code);if(ic==='sun'&&!w.day)ic='moon';
+  $('#wIco').innerHTML=`<svg viewBox="0 0 24 24">${WX[ic]}</svg>`;
+  $('#wTemp').textContent=w.t+'°';
+  $('#wDesc').textContent=`${w.city} · ${txt} · ${w.max}° / ${w.min}°`;
+  $('#weather').classList.add('on');
+}
+
+/* ----- vijesti (RSS) ----- */
+function parseRss(xml,srcName){
+  const doc=new DOMParser().parseFromString(xml,'text/xml');
+  const items=[...doc.querySelectorAll('item, entry')].slice(0,25);
+  const chan=srcName||(doc.querySelector('channel > title, feed > title')||{}).textContent||'Vijesti';
+  return items.map(it=>{
+    const q=s=>{const e=it.getElementsByTagName(s)[0];return e?e.textContent.trim():''};
+    let title=q('title'),src=chan;
+    const se=it.getElementsByTagName('source')[0];if(se){src=se.textContent.trim();title=title.replace(new RegExp('\\s+-\\s+'+src.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$'),'')}
+    const html=q('content:encoded')||q('description')||q('summary')||q('content');
+    let img='';
+    for(const tag of ['media:content','media:thumbnail','enclosure']){const e=it.getElementsByTagName(tag)[0];if(e&&e.getAttribute('url')&&(!e.getAttribute('type')||/image/.test(e.getAttribute('type')))){img=e.getAttribute('url');break}}
+    if(!img){const m=html.match(/<img[^>]+src=["']([^"']+)/i);if(m)img=m[1]}
+    return {t:title,src,img,date:q('pubDate')||q('published')||q('updated')||q('dc:date'),d:strip(html).slice(0,260)};
+  }).filter(x=>x.t);
+}
+async function loadNews(){
+  if(DEMO){D.news=[
+    {t:'Bjelašnica i Jahorina spremne za početak zimske sezone',src:'Vijesti BiH',d:'Ski centri najavljuju otvaranje staza čim temperature dozvole vještačko osnježavanje.',date:Date.now()-18*60e3},
+    {t:'Sarajevo: nove linije javnog prijevoza od ponedjeljka',src:'Grad danas',d:'Promjene voznog reda obuhvataju nekoliko tramvajskih i autobuskih linija.',date:Date.now()-55*60e3},
+    {t:'Prognoza: hladnija sedmica, moguć prvi snijeg na planinama',src:'Meteo',d:'Meteorolozi najavljuju pad temperatura i padavine u drugoj polovini sedmice.',date:Date.now()-2*3600e3},
+    {t:'Mostar ugostio međunarodni festival kratkog filma',src:'Kultura',d:'Festival je okupio autore iz dvadesetak zemalja regije i Evrope.',date:Date.now()-5*3600e3},
+    {t:'Tehnologija: sve više domaćinstava prelazi na optički internet',src:'Tech BiH',d:'Operateri bilježe rast broja priključaka u većim gradovima.',date:Date.now()-9*3600e3},
+    {t:'Fudbal: reprezentacija počinje pripreme za novi ciklus',src:'Sport',d:'Selektor je objavio spisak igrača za predstojeće pripreme.',date:Date.now()-26*3600e3}];return}
+  const urls=Object.keys(NEWS_SRC).filter(k=>SET.news[k]).map(k=>[NEWS_SRC[k].url,k==='google'?null:NEWS_SRC[k].name]);
+  (SET.extraRss||'').split(/[\s,]+/).filter(u=>/^https?:/.test(u)).forEach(u=>urls.push([u,null]));
+  const res=await Promise.allSettled(urls.map(([u,n])=>net(u).then(x=>parseRss(x,n))));
+  let all=[];res.forEach(r=>{if(r.status==='fulfilled')all=all.concat(r.value)});
+  const seen=new Set();all=all.filter(x=>{const k=x.t.toLowerCase().slice(0,60);if(seen.has(k))return false;seen.add(k);return true});
+  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(all.length){D.news=all.slice(0,24);store.set('newsCache',D.news)}
+}
+
+/* ----- TMDB filmovi ----- */
+const DEMO_FILMS=[
+ {id:1,t:'Tiha rijeka',g:['Drama'],y:'2026',r:7.8,d:'Nakon dvadeset godina, Amra se vraća u rodni grad na Drini i otkriva da rijeka čuva više tajni nego što je mislila.'},
+ {id:2,t:'Sjever',g:['Triler'],y:'2026',r:7.4,d:'Istraživačica nestaje na polarnoj stanici. Jedini trag je signal koji se svake noći javlja tačno u 3:17.'},
+ {id:3,t:'Posljednji voz',g:['Akcija'],y:'2025',r:6.9,d:'Jedan voz, jedna noć i sedam putnika koji ne smiju stići do posljednje stanice.'},
+ {id:4,t:'Ponoćni signal',g:['Sci-fi'],y:'2026',r:7.1,d:'Radio-amater hvata poruku koja dolazi iz budućnosti.'},
+ {id:5,t:'Kamen i so',g:['Historijski'],y:'2025',r:7.6,d:'Epska priča o trgovačkom putu kroz srednjovjekovnu Bosnu.'},
+ {id:6,t:'Daleka obala',g:['Romansa'],y:'2024',r:6.5,d:'Ljeto na jadranskom ostrvu koje će promijeniti dva života.'},
+ {id:7,t:'Zeleni val',g:['Komedija'],y:'2025',r:6.8,d:'Trojica prijatelja otvaraju eko-farmu. Šta bi moglo poći po zlu?'},
+ {id:8,t:'Neonski san',g:['Krimi'],y:'2026',r:7.2,d:'Detektivka u gradu koji nikad ne spava.'}
+];
+async function tm(path,extra=''){return net(`https://api.themoviedb.org/3${path}${path.includes('?')?'&':'?'}api_key=${encodeURIComponent(SET.tmdb)}&language=${SET.lang||'hr-HR'}${extra}`,1)}
+async function loadFilms(){
+  if(DEMO){D.films=DEMO_FILMS.map(f=>Object.assign({},f,{bg:art(f.t,'hero',1920,1080),poster:art(f.t,'film',600,900),demo:1}));return}
+  if(!SET.tmdb){D.films=[];return}
+  try{
+    let genres=store.get('genres',null);
+    if(!genres){const gl=await tm('/genre/movie/list');genres={};gl.genres.forEach(x=>genres[x.id]=x.name);store.set('genres',genres)}
+    const [a,b]=await Promise.all([tm('/trending/movie/week'),tm('/movie/popular','&region=BA')]);
+    const seen=new Set();const list=[];
+    for(const m of a.results.concat(b.results)){if(seen.has(m.id)||!m.poster_path)continue;seen.add(m.id);
+      list.push({id:m.id,t:m.title,g:(m.genre_ids||[]).slice(0,2).map(i=>genres[i]).filter(Boolean),y:(m.release_date||'').slice(0,4),r:m.vote_average,d:m.overview,
+        poster:'https://image.tmdb.org/t/p/w342'+m.poster_path,bg:m.backdrop_path?'https://image.tmdb.org/t/p/w1280'+m.backdrop_path:''})}
+    D.films=list.slice(0,30);
+  }catch(e){toast('TMDB: ključ ne radi ili nema interneta')}
+}
+async function filmDetails(f){
+  if(f.det)return f.det;
+  if(f.demo)return f.det={imdb:'tt0000000',trailer:null,runtime:118};
+  const x=await tm(`/movie/${f.id}`,'&append_to_response=external_ids,videos&include_video_language=hr,bs,en,null');
+  const vids=(x.videos&&x.videos.results||[]).filter(v=>v.site==='YouTube');
+  const tr=vids.find(v=>v.type==='Trailer')||vids.find(v=>v.type==='Teaser')||vids[0];
+  return f.det={imdb:x.imdb_id||(x.external_ids&&x.external_ids.imdb_id),trailer:tr?tr.key:null,runtime:x.runtime};
+}
+async function openStremio(f){
+  if(!D.stremio){toast('Stremio nije instaliran');return}
+  try{const d=await filmDetails(f);
+    if(DEMO){toast(`Stremio: ${f.t}`);return}
+    if(d.imdb&&B.openUri(`stremio:///detail/movie/${d.imdb}/${d.imdb}`))return;
+    B.launch('com.stremio.one');toast('Stremio otvoren — potraži film ručno');
+  }catch(e){B&&B.launch('com.stremio.one')}
+}
+async function openTrailer(f){
+  try{const d=await filmDetails(f);
+    if(DEMO){openPlayer({id:'demo',t:'Trailer: '+f.t,c:f.t,thumb:f.bg},'trailer');return}
+    if(!d.trailer){toast('Trailer nije pronađen');return}
+    openPlayer({id:d.trailer,t:'Trailer: '+f.t,c:f.t,thumb:f.bg},'trailer');
+  }catch(e){toast('Trailer trenutno nije dostupan')}
+}
+
+/* ----- YouTube kanali (RSS, bez ključa) ----- */
+async function resolveChannel(ch){
+  if(ch.id)return ch;
+  const q=ch.q.trim();
+  if(/^UC[\w-]{22}$/.test(q)){ch.id=q;return ch}
+  const path=q.startsWith('http')?q:('https://www.youtube.com/'+(q.startsWith('@')?q:'@'+q));
+  const html=await net(path);
+  const m=html.match(/"(?:channelId|externalId)":"(UC[\w-]{22})"/)||html.match(/channel\/(UC[\w-]{22})/);
+  if(!m)throw new Error('kanal');
+  ch.id=m[1];const n=html.match(/<meta property="og:title" content="([^"]+)"/);if(n)ch.name=n[1];
+  return ch;
+}
+async function loadYT(){
+  if(DEMO){D.yt=[
+    {id:'d1',t:'Prenj iz zraka — 4K snimak dronom',c:'Planine BiH',v:'1,2 mil. pregleda',date:Date.now()-3*864e5,w:'4K dron'},
+    {id:'d2',t:'Testirali smo 5 ćevabdžinica — koja je najbolja?',c:'Gurman.ba',v:'864 hilj. pregleda',date:Date.now()-864e5,w:'5 lokala'},
+    {id:'d3',t:'Pametna kuća za 100 KM — kompletan vodič',c:'Tech Kutak',v:'312 hilj. pregleda',date:Date.now()-5*864e5,w:'100 KM'},
+    {id:'d4',t:'Mostar u jesen — vlog',c:'Putujmo',v:'98 hilj. pregleda',date:Date.now()-14*864e5,w:'Mostar'},
+    {id:'d5',t:'Kako radi vještačka inteligencija? Objašnjeno za 10 minuta',c:'Nauka Danas',v:'540 hilj. pregleda',date:Date.now()-30*864e5,w:'AI'}];return}
+  if(!SET.channels.length){D.yt=[];return}
+  let all=[];
+  await Promise.allSettled(SET.channels.map(async ch=>{
+    await resolveChannel(ch);
+    const xml=await net('https://www.youtube.com/feeds/videos.xml?channel_id='+ch.id);
+    const doc=new DOMParser().parseFromString(xml,'text/xml');
+    const author=(doc.querySelector('feed > title')||{}).textContent||ch.name;ch.name=author;
+    [...doc.getElementsByTagName('entry')].slice(0,8).forEach(e=>{
+      const q=s=>{const x=e.getElementsByTagName(s)[0];return x?x.textContent:''};
+      const st=e.getElementsByTagName('media:statistics')[0];
+      const id=q('yt:videoId');if(!id)return;
+      const link=(e.getElementsByTagName('link')[0]||{getAttribute:()=>''}).getAttribute('href')||'';
+      if(link.includes('/shorts/'))return;
+      all.push({id,t:q('title'),c:author,v:st?views(st.getAttribute('views')):'',date:q('published')});
+    });
+  }));
+  saveSet();
+  all.sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(all.length){D.yt=all.slice(0,30);store.set('ytCache',D.yt)}
+}
+const ytThumb=(id,q='mqdefault')=>`https://i.ytimg.com/vi/${id}/${q}.jpg`;
+
+/* ----- historija gledanja (iz ugrađenog playera) ----- */
+function saveHistory(it,pos,dur){
+  if(!dur||dur<30)return;
+  let h=D.history.filter(x=>x.id!==it.id);
+  h.unshift({id:it.id,t:it.t,c:it.c||'',pos,dur,ts:Date.now()});
+  D.history=h.slice(0,40);store.set('history',D.history);
+}
+const continueList=()=>D.history.filter(x=>x.pos/x.dur>.02&&x.pos/x.dur<.95);
+if(DEMO&&!D.history.length)D.history=[
+  {id:'d6',t:'Najljepša jezera Balkana',c:'Planine BiH',pos:610,dur:1018,ts:Date.now()},
+  {id:'d3',t:'Pametna kuća za 100 KM — kompletan vodič',c:'Tech Kutak',pos:900,dur:1125,ts:Date.now()-1e6},
+  {id:'d4',t:'Mostar u jesen — vlog',c:'Putujmo',pos:140,dur:690,ts:Date.now()-2e6}];
+
+/* ----- TV uživo (M3U) ----- */
+function parseM3U(t){
+  const out=[];let cur=null;
+  for(const raw of t.split(/\r?\n/)){
+    const l=raw.trim();if(!l)continue;
+    if(l.startsWith('#EXTINF')){
+      const name=l.replace(/^#EXTINF:[^,]*,/,'').trim();
+      cur={n:name||'Kanal',l:(l.match(/tvg-logo="([^"]*)"/)||[])[1]||'',g:(l.match(/group-title="([^"]*)"/)||[])[1]||''};
+    }else if(!l.startsWith('#')){
+      if(cur){cur.u=l;out.push(cur);cur=null}else out.push({n:l.split('/').pop(),l:'',g:'',u:l});
+    }
+  }
+  return out;
+}
+async function loadLive(force){
+  if(DEMO){D.live=['BHT 1','FTV','N1 BiH','Hayat','TV1','OBN','Face TV','Al Jazeera Balkans','RTRS','Nova BH','Pink BH','Sport Klub'].map((n,i)=>({n,l:'',g:'BiH',u:'demo'+i}));return}
+  if(!SET.m3u){D.live=[];return}
+  if(!force&&D.live.length&&Date.now()-store.get('liveTs',0)<6*3600e3)return;
+  try{const t=await net(SET.m3u);const list=parseM3U(t);if(list.length){D.live=list;store.set('liveCache',list.length<6000?list:list.slice(0,6000));store.set('liveTs',Date.now());if(force)toast(`Učitano ${list.length} kanala`)}else if(force)toast('M3U lista je prazna')}
+  catch(e){if(force)toast('M3U link se ne može učitati')}
+}
+function liveOrdered(){
+  const fav=SET.favLive.map(u=>D.live.find(c=>c.u===u)).filter(Boolean);
+  return fav.concat(D.live.filter(c=>!SET.favLive.includes(c.u)));
+}
+function playLive(list,idx){
+  if(DEMO){toast(`TV uživo: ${list[idx].n} (na TV-u se otvara player)`);return}
+  B.playLive(JSON.stringify(list.map(c=>({n:c.n,u:c.u,l:c.l,g:c.g}))),idx);
+}
+
+/* =====================================================================
+   HERO
+   ===================================================================== */
+let HERO=[];
+function buildHero(){
+  HERO=[];
+  if(D.films.length){
+    D.films.filter(f=>f.bg).slice(0,5).forEach(f=>HERO.push({
+      kick:['Film',f.g.join(' · ')],t:f.t,meta:[f.y,f.r?'★ '+f.r.toFixed(1):''],d:f.d,bg:f.bg,
+      actions:[D.stremio?{l:'Gledaj',i:'play',fn:()=>openStremio(f)}:{l:'Trailer',i:'trailer',fn:()=>openTrailer(f)},
+               D.stremio?{i:'trailer',fn:()=>openTrailer(f)}:null,{i:'info',fn:()=>openDetail(f)}].filter(Boolean)}));
+  }
+  if(!HERO.length&&D.news.length){
+    D.news.filter(n=>n.img).slice(0,4).forEach(n=>HERO.push({kick:['Vijesti',n.src],t:n.t,meta:[ago(n.date)],d:n.d,bg:n.img,
+      actions:[{l:'Sve vijesti',i:'down',fn:()=>gotoRow('news')}]}));
+  }
+  if(!HERO.length)HERO.push({kick:['Ekran','Dobro došao'],t:'Tvoj novi TV',meta:[],d:'Dodaj TMDB ključ, M3U listu i YouTube kanale u postavkama, i ovaj ekran će se napuniti filmovima, kanalima i klipovima.',bg:art('ekran-welcome','hero',1920,1080),
+    actions:[{l:'Otvori postavke',i:'gear',fn:openSettings}]});
+  S.feat=Math.min(S.feat,HERO.length-1);
+}
+function showFeatured(i,instant){
+  S.feat=(i+HERO.length)%HERO.length;const f=HERO[S.feat];const h=$('#hero');
+  const fill=()=>{
+    $('#hKick').innerHTML=`<span class="pill">${esc(f.kick[0])}</span>${esc(f.kick[1]||'')}`;
+    const tt=$('#hTitle');tt.textContent=f.t;tt.classList.toggle('long',f.t.length>18);
+    $('#hMeta').innerHTML=sepJoin(f.meta);$('#hDesc').textContent=f.d||'';
+    $('#hActions').innerHTML=f.actions.map(a=>`<div class="btn${a.l?'':' round'}">${icon(a.i)}${a.l?esc(a.l):''}</div>`).join('');
+    [...$('#hActions').children].forEach((b,j)=>b.onclick=()=>{S.layer=null;S.row=0;S.btn=j;render();activate()});
+    $('#hDots').innerHTML=HERO.length>1?HERO.map((_,j)=>`<i class="${j===S.feat?'on':''}"></i>`).join(''):'';
+    S.btn=Math.min(S.btn,f.actions.length-1);
+    h.classList.remove('swap');
+    if(S.row===0&&!S.layer)markFocus();
+  };
+  if(instant)fill();else{h.classList.add('swap');setTimeout(fill,380)}
+  if(S.row<=0)setBg(f.bg,true);
+}
+setInterval(()=>{if(S.row===0&&!S.layer&&HERO.length>1)showFeatured(S.feat+1)},9000);
+
+/* =====================================================================
+   REDOVI
+   ===================================================================== */
+const ALL_APPS={pkg:'__all',label:'Sve aplikacije',i:'grid',glass:1};
+const ALL_LIVE={u:'__live',n:'Svi kanali',all:1};
+let ROWS=[];
+function rowDefs(){
+  const R=[{type:'hero',key:'hero'}];
+  const favs=SET.favApps.map(appBy).filter(Boolean);
+  R.push({key:'apps',type:'apps',title:'Aplikacije',items:[...favs,ALL_APPS],w:270,h:152,extra:56});
+  const cont=continueList();
+  if(cont.length)R.push({key:'cont',type:'cont',title:'Nastavi gledati',items:cont,w:420,h:236,extra:96});
+  if(D.live.length){const L=liveOrdered();R.push({key:'live',type:'live',title:'TV uživo',sub:`${D.live.length} kanala`,items:[...L.slice(0,24),ALL_LIVE],list:L,w:270,h:152,extra:56})}
+  if(D.films.length)R.push({key:'films',type:'films',title:'Popularni filmovi',sub:'TMDB · ova sedmica',items:D.films,w:234,h:350,extra:20});
+  if(D.yt.length)R.push({key:'yt',type:'yt',title:'Novo s tvojih kanala',sub:'YouTube',items:D.yt,w:420,h:236,extra:96});
+  if(D.news.length)R.push({key:'news',type:'news',title:'Vijesti',sub:'Bosna i Hercegovina',items:D.news,w:420,h:236,extra:124});
+  return R;
+}
+const ROW0_Y=826,FOCUS_Y=610,GAP=30;
+const S={row:0,btn:0,col:{},feat:0,layer:null,moving:null};
+
+function cardFor(R,it,ci){
+  const c=document.createElement('div');c.style.width=R.w+'px';
+  let html='',bg='';
+  const h=R.h;
+  if(R.type==='apps'||R.grid==='apps'){
+    c.className='card app'+(it.glass||(!it.bg&&!it.banner)?' glass':'');
+    let inner;
+    if(it.i&&(DEMO||it.glass))inner=icon(it.i,it.fg||'#fff');
+    else inner=`<img class="${it.banner?'banner':'ico'}" src="/icon/${encodeURIComponent(it.pkg)}" alt="">`;
+    html=`<div class="img" style="height:${h}px;${it.bg?'background:'+it.bg:''}">${inner}</div><div class="lbl">${esc(it.label)}</div>`;
+    if(R.grid&&SET.favApps.includes(it.pkg))html+='<div class="fav">★</div>';
+  }else if(R.type==='live'||R.grid==='live'){
+    c.className='card live';
+    if(it.all)html=`<div class="img" style="height:${h}px;background:rgba(255,255,255,.1)">${icon('grid','#fff').replace('<svg','<svg style="width:60px;height:60px"')}</div><div class="lbl">Svi kanali</div>`;
+    else html=`<div class="img" style="height:${h}px"><span class="ldot"></span>${it.l?`<img src="${esc(it.l)}" alt="" onerror="this.outerHTML='<div class=cname>${esc(it.n).replace(/'/g,'')}</div>'">`:`<div class="cname">${esc(it.n)}</div>`}</div><div class="lbl">${esc(it.n)}</div>${SET.favLive.includes(it.u)?'<div class="fav">★</div>':''}`;
+  }else if(R.type==='films'){
+    c.className='card poster'+(it.demo?'':' real');
+    html=`<div class="img" style="height:${h}px">${it.r?`<div class="rate">★ ${it.r.toFixed(1)}</div>`:''}<div class="ptitle"><small>${esc(it.g[0]||'')} · ${it.y}</small>${esc(it.t)}</div></div>`;
+    bg=it.poster;
+  }else if(R.type==='yt'||R.type==='cont'){
+    c.className='card vid';
+    const demo=String(it.id).startsWith('d');
+    bg=demo?art(it.t,'yt',800,450):ytThumb(it.id);
+    const word=demo?`<div class="thumbword">${esc(it.w||it.t.split(' ')[0])}</div>`:'';
+    if(R.type==='cont')html=`<div class="img" style="height:${h}px">${word}<div class="prog"><i style="width:${(it.pos/it.dur*100).toFixed(1)}%"></i></div></div><div class="cap"><b>${esc(it.t)}</b><span>${esc(it.c)} · ostalo ${tfmt(it.dur-it.pos)}</span></div>`;
+    else html=`<div class="img" style="height:${h}px">${word}</div><div class="cap"><b>${esc(it.t)}</b><span>${esc(it.c)}${it.v?' · '+esc(it.v):''} · ${ago(it.date)}</span></div>`;
+  }else if(R.type==='news'){
+    c.className='card vid news';
+    bg=it.img||art(it.src+it.t,'yt',800,450);
+    html=`<div class="img" style="height:${h}px"><div class="src">${esc(it.src)}</div></div><div class="cap"><b>${esc(it.t)}</b><span>${ago(it.date)}</span></div>`;
+  }
+  c.innerHTML=html;
+  if(bg)c.querySelector('.img').style.backgroundImage=bgv(bg);
+  return c;
+}
+
+function buildRows(){
+  const keep=ROWS[S.row]&&ROWS[S.row].key;
+  ROWS=rowDefs();
+  const tr=$('#track');tr.innerHTML='';let y=ROW0_Y;
+  ROWS.forEach((R,ri)=>{
+    if(R.type==='hero')return;
+    R.y=y;
+    const row=document.createElement('div');row.className='row';row.style.top=y+'px';
+    row.innerHTML=`<h3>${esc(R.title)}${R.sub?`<small>${esc(R.sub)}</small>`:''}</h3><div class="strip"></div>`;
+    const st=row.querySelector('.strip');
+    R.items.forEach((it,ci)=>{
+      const c=cardFor(R,it,ci);
+      c.onclick=()=>{if(S.layer)return;if(S.row===ri&&curCol(R)===ci)activate();else{S.row=ri;S.col[R.key]=ci;render()}};
+      st.appendChild(c);
+    });
+    R.el=row;R.strip=st;tr.appendChild(row);
+    y+=64+R.h+R.extra+GAP;
+  });
+  if(keep){const i=ROWS.findIndex(r=>r.key===keep);S.row=i>=0?i:Math.min(S.row,ROWS.length-1)}
+  ROWS.forEach(R=>{if(R.items)S.col[R.key]=Math.min(S.col[R.key]||0,R.items.length-1)});
+}
+const curCol=R=>S.col[R.key]||0;
+function gotoRow(key){const i=ROWS.findIndex(r=>r.key===key);if(i>0){S.row=i;render()}}
+
+/* ---------- pozadina ---------- */
+let bgFront='A',bgCur='',bgT;
+function setBg(url,now){
+  if(!url||url===bgCur)return;bgCur=url;clearTimeout(bgT);
+  bgT=setTimeout(()=>{
+    const go=()=>{if(bgCur!==url)return;const next=bgFront==='A'?'B':'A';const n=$('#bg'+next),o=$('#bg'+bgFront);
+      n.style.backgroundImage=bgv(url);n.classList.remove('on');void n.offsetWidth;n.classList.add('on');o.classList.remove('on');bgFront=next};
+    if(url.startsWith('url('))go();else{const im=new Image();im.onload=go;im.onerror=()=>{};im.src=url}
+  },now?0:280);
+}
+
+/* ---------- info panel (kad je fokus u redu) ---------- */
+let infoKey='';
+function showInfo(R,it){
+  const key=R.key+'|'+(it.id||it.pkg||it.u||it.t);if(key===infoKey)return;infoKey=key;
+  const el=$('#info');el.classList.add('swap');
+  let k1='',k2='',t='',meta=[],d='',bg=null;
+  const f=HERO[S.feat]||{};
+  switch(R.type){
+    case 'apps':k1=f.kick?f.kick[0]:'';k2=f.kick?f.kick[1]:'';t=f.t;meta=f.meta||[];d=f.d;bg=f.bg;break;
+    case 'cont':k1='Nastavi';k2=it.c;t=it.t;meta=[Math.round(it.pos/it.dur*100)+'% pogledano','ostalo '+tfmt(it.dur-it.pos)];bg=String(it.id).startsWith('d')?art(it.t,'hero',1920,1080):ytThumb(it.id,'maxresdefault');break;
+    case 'yt':k1='YouTube';k2=it.c;t=it.t;meta=[it.v,ago(it.date)];bg=String(it.id).startsWith('d')?art(it.t,'hero',1920,1080):ytThumb(it.id,'maxresdefault');break;
+    case 'films':k1='Film';k2=it.g.join(' · ');t=it.t;meta=[it.y,it.r?'★ '+it.r.toFixed(1):''];d=it.d;bg=it.bg;break;
+    case 'news':k1='Vijesti';k2=it.src;t=it.t;meta=[ago(it.date)];d=it.d;bg=it.img||null;break;
+    case 'live':
+      if(it.all){k1='TV uživo';k2='';t='Svi kanali';meta=[D.live.length+' kanala'];d='Otvori listu svih kanala. Drži OK na kanalu da ga dodaš u omiljene.'}
+      else{const L=R.list;k1='TV uživo';k2=it.g;t=it.n;meta=[`Kanal ${L.indexOf(it)+1} od ${L.length}`];d='OK = gledaj · u playeru gore/dolje mijenja kanal.'}
+      break;
+  }
+  setTimeout(()=>{
+    $('#iKick').innerHTML=`<span class="pill">${esc(k1)}</span>${esc(k2||'')}`;
+    const tt=$('#iTitle');tt.textContent=t||'';tt.classList.toggle('long',(t||'').length>40);
+    $('#iMeta').innerHTML=sepJoin(meta);$('#iDesc').textContent=d||'';
+    el.classList.remove('swap');
+  },120);
+  if(bg)setBg(bg);
+}
+
+/* ---------- crtanje fokusa ---------- */
+function markFocus(){
+  document.querySelectorAll('#stage > .top .focus, #hero .focus, #track .focus').forEach(e=>e.classList.remove('focus'));
+  if(S.row===-1){$('#gear').classList.add('focus');return}
+  if(S.row===0){const b=$('#hActions').children[S.btn];if(b)b.classList.add('focus');return}
+  const R=ROWS[S.row];const c=R.strip.children[curCol(R)];if(c)c.classList.add('focus');
+}
+function render(){
+  if(S.layer)return LAYERS[S.layer].render();
+  const st=$('#stage');
+  st.classList.toggle('compact',S.row>0);
+  const R=ROWS[Math.max(0,S.row)];
+  $('#track').style.transform=`translateY(${S.row<=0?0:FOCUS_Y-R.y}px)`;
+  ROWS.forEach((x,i)=>{if(x.el){x.el.classList.toggle('gone',S.row>0&&i<S.row);x.el.classList.toggle('active',i===S.row)}});
+  markFocus();
+  document.querySelectorAll('.moving').forEach(e=>e.classList.remove('moving'));
+  if(S.row<=0){infoKey='';if(HERO[S.feat])setBg(HERO[S.feat].bg,true);return}
+  const ci=curCol(R);
+  const step=R.w+30,visible=1920-240,total=R.items.length*step-30;
+  const off=Math.max(0,Math.min(ci*step-step,total-visible));
+  R.strip.style.transform=`translateX(${-off}px)`;
+  if(S.moving&&R.key==='apps')R.strip.children[ci].classList.add('moving');
+  showInfo(R,R.items[ci]);
+}
+
+/* ---------- OK / dugo OK ---------- */
+function activate(){
+  if(S.layer)return LAYERS[S.layer].ok();
+  if(S.row===-1)return openSettings();
+  if(S.row===0){const a=HERO[S.feat].actions[S.btn];return a&&a.fn()}
+  const R=ROWS[S.row],it=R.items[curCol(R)];
+  if(S.moving){S.moving=null;saveSet();render();toast('Raspored sačuvan');return}
+  switch(R.type){
+    case 'apps':return launchApp(it);
+    case 'cont':case 'yt':return openPlayer(it,'yt');
+    case 'films':return openDetail(it);
+    case 'live':return it.all?openGrid('live'):playLive(R.list,R.list.indexOf(it));
+    case 'news':return;
+  }
+}
+function longPress(){
+  if(S.layer)return LAYERS[S.layer].long&&LAYERS[S.layer].long();
+  if(S.row<=0)return;
+  const R=ROWS[S.row],ci=curCol(R),it=R.items[ci];
+  if(R.type==='apps'&&!it.glass)return openMenu(it.label,[
+    {l:'Pomjeri (← →, pa OK)',fn:()=>{S.moving=it.pkg;render()}},
+    {l:'Ukloni iz reda',fn:()=>{SET.favApps=SET.favApps.filter(p=>p!==it.pkg);saveSet();buildRows();render()}},
+    {l:'Dodaj druge aplikacije…',fn:()=>openGrid('apps')}]);
+  if(R.type==='cont'||R.type==='yt')return openMenu(it.t,[
+    {l:'Otvori u YouTube aplikaciji',fn:()=>openYTApp(it.id)},
+    ...(R.type==='cont'?[{l:'Ukloni s liste',fn:()=>{D.history=D.history.filter(x=>x.id!==it.id);store.set('history',D.history);buildRows();render()}}]:[])]);
+  if(R.type==='live'&&!it.all)return toggleFavLive(it);
+  if(R.type==='films')return openMenu(it.t,[{l:'Gledaj u Stremiu',fn:()=>openStremio(it)},{l:'Trailer',fn:()=>openTrailer(it)}]);
+}
+function moveApp(dir){
+  const a=SET.favApps,i=a.indexOf(S.moving),j=i+dir;
+  if(i<0||j<0||j>=a.length)return;
+  [a[i],a[j]]=[a[j],a[i]];buildRows();S.col.apps=j;render();
+}
+function toggleFavLive(c){
+  const on=SET.favLive.includes(c.u);
+  SET.favLive=on?SET.favLive.filter(u=>u!==c.u):[c.u,...SET.favLive];saveSet();
+  toast(on?`${c.n} uklonjen iz omiljenih`:`${c.n} dodan u omiljene ★`);
+}
+function openYTApp(id){B?B.openYouTubeApp(id):toast('Otvaram u YouTube aplikaciji…')}
+
+/* =====================================================================
+   SLOJEVI: mreža, detalji, meni, player, postavke
+   ===================================================================== */
+const LAYERS={};
+const covered=()=>$('#stage').classList.toggle('covered',S.layer==='detail'||S.layer==='player'||(S.prev||[]).includes('player'));
+function pushLayer(name){S.prev=S.prev||[];if(S.layer)S.prev.push(S.layer);S.layer=name;$('#'+LAYERS[name].el).classList.add('on');covered();render()}
+function popLayer(){const L=LAYERS[S.layer];$('#'+L.el).classList.remove('on');L.close&&L.close();S.layer=(S.prev&&S.prev.pop())||null;covered();render()}
+
+/* ----- mreža (sve aplikacije / svi kanali) ----- */
+const GR={kind:'apps',items:[],i:0,top:-1};
+function openGrid(kind){
+  GR.kind=kind;GR.i=0;GR.top=-1;
+  GR.items=kind==='apps'?D.apps:liveOrdered();
+  $('#gTitle').textContent=kind==='apps'?'Sve aplikacije':'TV uživo';
+  $('#gSub').textContent=kind==='apps'?`${D.apps.length} instaliranih · ★ = u redu Aplikacije`:`${GR.items.length} kanala · ★ = omiljeni (prvi u redu)`;
+  pushLayer('grid');
+}
+LAYERS.grid={el:'gridL',
+  render(){
+    const COLS=6,RH=kind()==='apps'?220:220,CW=250,GAPX=48;
+    const fr=Math.floor(GR.i/COLS),top=Math.max(0,fr-1);
+    const gr=$('#grid');
+    if(top!==GR.top||gr.dataset.k!==GR.kind+GR.items.length+(GR.ver||0)){
+      GR.top=top;gr.dataset.k=GR.kind+GR.items.length+(GR.ver||0);gr.innerHTML='';
+      const R={grid:GR.kind,w:CW,h:141};
+      for(let r=top;r<top+4;r++)for(let c=0;c<COLS;c++){
+        const idx=r*COLS+c;if(idx>=GR.items.length)break;
+        const el=cardFor(R,GR.items[idx],idx);el.dataset.i=idx;
+        el.style.left=(c*(CW+GAPX))+'px';el.style.top=((r-top)*RH+20)+'px';
+        el.onclick=()=>{if(GR.i===idx)LAYERS.grid.ok();else{GR.i=idx;render()}};
+        gr.appendChild(el);
+      }
+    }
+    gr.querySelectorAll('.focus').forEach(e=>e.classList.remove('focus'));
+    const f=gr.querySelector(`[data-i="${GR.i}"]`);if(f)f.classList.add('focus');
+    function kind(){return GR.kind}
+  },
+  key(k){const n=GR.items.length,c=GR.i%6;
+    if(k==='right'&&c<5&&GR.i<n-1)GR.i++;else if(k==='left'&&c>0)GR.i--;
+    else if(k==='down'&&GR.i+6<n)GR.i+=6;else if(k==='down'&&Math.floor(GR.i/6)<Math.floor((n-1)/6))GR.i=n-1;
+    else if(k==='up'&&GR.i-6>=0)GR.i-=6;render()},
+  ok(){const it=GR.items[GR.i];if(!it)return;if(GR.kind==='apps')launchApp(it);else playLive(GR.items,GR.i)},
+  long(){const it=GR.items[GR.i];if(!it)return;
+    if(GR.kind==='apps'){const on=SET.favApps.includes(it.pkg);SET.favApps=on?SET.favApps.filter(p=>p!==it.pkg):[...SET.favApps,it.pkg];saveSet();toast(on?`${it.label} uklonjen iz reda`:`${it.label} dodan u red Aplikacije ★`)}
+    else toggleFavLive(it);
+    GR.ver=(GR.ver||0)+1;render()},
+  close(){buildRows()}
+};
+
+/* ----- detalji filma ----- */
+const DT={f:null,b:0,acts:[]};
+function openDetail(f){
+  DT.f=f;DT.b=0;
+  $('#dKick').innerHTML=`<span class="pill">Film</span>${esc(f.g.join(' · '))}`;
+  $('#dTitle').textContent=f.t;$('#dMeta').innerHTML=sepJoin([f.y,f.r?'★ '+f.r.toFixed(1):'']);$('#dDesc').textContent=f.d||'';
+  DT.acts=[D.stremio?{l:'Gledaj u Stremiu',i:'play',fn:()=>openStremio(f)}:null,{l:'Trailer',i:'trailer',fn:()=>openTrailer(f)}].filter(Boolean);
+  $('#dActions').innerHTML=DT.acts.map(a=>`<div class="btn">${icon(a.i)}${a.l}</div>`).join('');
+  [...$('#dActions').children].forEach((b,j)=>b.onclick=()=>{DT.b=j;render();DT.acts[j].fn()});
+  setBg(f.bg,true);pushLayer('detail');
+  filmDetails(f).then(d=>{if(DT.f===f&&d.runtime)$('#dMeta').innerHTML=sepJoin([f.y,`${Math.floor(d.runtime/60)} h ${d.runtime%60} min`,f.r?'★ '+f.r.toFixed(1):''])}).catch(()=>{});
+}
+LAYERS.detail={el:'detail',
+  render(){[...$('#dActions').children].forEach((b,j)=>b.classList.toggle('focus',j===DT.b))},
+  key(k){if(k==='left'&&DT.b>0)DT.b--;if(k==='right'&&DT.b<DT.acts.length-1)DT.b++;render()},
+  ok(){DT.acts[DT.b].fn()}
+};
+
+/* ----- meni ----- */
+const MN={items:[],i:0};
+function openMenu(title,items){MN.items=items;MN.i=0;$('#mTitle').textContent=title;
+  $('#mItems').innerHTML=items.map(x=>`<div class="mitem">${esc(x.l)}</div>`).join('');
+  [...$('#mItems').children].forEach((e,j)=>e.onclick=()=>{MN.i=j;LAYERS.menu.ok()});
+  pushLayer('menu')}
+LAYERS.menu={el:'menu',
+  render(){[...$('#mItems').children].forEach((e,j)=>e.classList.toggle('focus',j===MN.i))},
+  key(k){if(k==='down'&&MN.i<MN.items.length-1)MN.i++;if(k==='up'&&MN.i>0)MN.i--;render()},
+  ok(){const fn=MN.items[MN.i].fn;popLayer();fn()}
+};
+
+/* ----- YouTube player (ugrađen, pamti dokle si stigao) ----- */
+const PL={it:null,kind:'yt',yt:null,timer:null,osdT:null,demoPos:0,demoDur:0,playing:true};
+let ytApi=null;
+function ensureYT(){
+  if(window.YT&&window.YT.Player)return Promise.resolve();
+  if(ytApi)return ytApi;
+  ytApi=new Promise((res,rej)=>{
+    window.onYouTubeIframeAPIReady=()=>res();
+    const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>{ytApi=null;rej()};document.head.appendChild(s);
+    setTimeout(()=>{if(!(window.YT&&window.YT.Player)){ytApi=null;rej()}},12000);
+  });
+  return ytApi;
+}
+function openPlayer(it,kind){
+  PL.it=it;PL.kind=kind;PL.playing=true;
+  const demo=DEMO||String(it.id).startsWith('d')||it.id==='demo';
+  $('#plBg').style.backgroundImage=bgv(it.thumb||(demo?art(it.t,'hero',1920,1080):ytThumb(it.id,'hqdefault')));
+  $('#oTitle').textContent=it.t;$('#oChan').textContent=it.c||'';
+  $('#plSpin').style.display='block';$('#ytWrap').innerHTML='<div id="ytFrame"></div>';
+  pushLayer('player');osd();
+  const prev=D.history.find(x=>x.id===it.id);
+  const start=kind==='yt'&&prev&&prev.pos/prev.dur<.95?Math.max(0,prev.pos-3):0;
+  if(demo){PL.demoDur=prev?prev.dur:900;PL.demoPos=start;$('#plSpin').style.display='none';
+    clearInterval(PL.timer);PL.timer=setInterval(()=>{if(PL.playing)PL.demoPos=Math.min(PL.demoDur,PL.demoPos+1);updOsd()},1000);
+    toast('Pregled: na TV-u ovdje ide pravi YouTube video');return}
+  ensureYT().then(()=>{
+    if(S.layer!=='player'||PL.it!==it)return;
+    PL.yt=new YT.Player('ytFrame',{width:1920,height:1080,videoId:it.id,
+      playerVars:{autoplay:1,controls:0,rel:0,iv_load_policy:3,modestbranding:1,playsinline:1,fs:0,disablekb:1,start:Math.floor(start),origin:location.origin},
+      events:{
+        onReady:e=>{e.target.playVideo()},
+        onStateChange:e=>{if(e.data===1){$('#plSpin').style.display='none';PL.playing=true}if(e.data===2)PL.playing=false;if(e.data===0){savePos();popLayer()}},
+        onError:()=>{popLayer();openYTApp(it.id);toast('Ovaj video se otvara u YouTube aplikaciji')}
+      }});
+    clearInterval(PL.timer);PL.timer=setInterval(()=>{updOsd();savePos(true)},1000);
+  }).catch(()=>{popLayer();openYTApp(it.id)});
+}
+function curTimes(){
+  if(PL.yt&&PL.yt.getCurrentTime)try{return [PL.yt.getCurrentTime()||0,PL.yt.getDuration()||0]}catch(e){}
+  return [PL.demoPos,PL.demoDur];
+}
+let saveTick=0;
+function savePos(throttle){if(PL.kind!=='yt')return;if(throttle&&(++saveTick%5))return;const [p,d]=curTimes();if(d)saveHistory(PL.it,p,d)}
+function updOsd(){const [p,d]=curTimes();$('#oCur').textContent=tfmt(p);$('#oDur').textContent=tfmt(d);$('#oBar').style.width=(d?p/d*100:0)+'%'}
+function osd(){const o=$('#osd');o.classList.remove('hide');updOsd();clearTimeout(PL.osdT);PL.osdT=setTimeout(()=>{if(PL.playing)o.classList.add('hide')},3500)}
+function pstate(ic){const p=$('#pState');p.innerHTML=icon(ic,'#fff');p.classList.add('on');setTimeout(()=>p.classList.remove('on'),700)}
+LAYERS.player={el:'player',
+  render(){},
+  key(k){
+    if(k==='left'||k==='right'){const [p,d]=curTimes();const np=Math.max(0,Math.min(d-1,p+(k==='right'?10:-10)));
+      if(PL.yt&&PL.yt.seekTo)PL.yt.seekTo(np,true);else PL.demoPos=np;}
+    osd();
+  },
+  ok(){PL.playing=!PL.playing;
+    if(PL.yt&&PL.yt.pauseVideo){PL.playing?PL.yt.playVideo():PL.yt.pauseVideo()}
+    pstate(PL.playing?'play':'pause');osd()},
+  long(){const id=PL.it.id;popLayer();openYTApp(id)},
+  close(){savePos();clearInterval(PL.timer);try{PL.yt&&PL.yt.destroy()}catch(e){}PL.yt=null;$('#ytWrap').innerHTML='';buildRows()}
+};
+
+/* ----- postavke ----- */
+const ST={i:0,items:[]};
+function openSettings(){ST.i=0;buildSettings();pushLayer('settings')}
+function buildSettings(){
+  const it=[];
+  it.push({h:'Vrijeme'});
+  it.push({type:'input',l:'Grad',s:'Prazno = automatski po lokaciji',key:'city',ph:'npr. Sarajevo'});
+  it.push({h:'Filmovi (TMDB)'});
+  it.push({type:'input',l:'TMDB API ključ',s:'Besplatno na themoviedb.org → Settings → API',key:'tmdb',ph:'32 znaka (API Key)'});
+  it.push({h:'TV uživo'});
+  it.push({type:'input',l:'M3U link',s:'Lista kanala (http… .m3u / .m3u8)',key:'m3u',ph:'https://…'});
+  it.push({type:'btn',l:'Učitaj kanale sada',v:D.live.length?D.live.length+' kanala':'—',fn:()=>loadLive(true).then(()=>{buildRows();buildSettings();render()})});
+  it.push({h:'YouTube kanali'});
+  it.push({type:'input',l:'Dodaj kanal',s:'@ime kanala ili link · OK za dodavanje',key:'__addch',ph:'@kanal'});
+  SET.channels.forEach((ch,j)=>it.push({type:'btn',l:ch.name||ch.q,v:'OK = ukloni',fn:()=>{SET.channels.splice(j,1);saveSet();D.yt=D.yt.filter(v=>v.c!==ch.name);buildSettings();render()}}));
+  it.push({h:'Vijesti'});
+  Object.keys(NEWS_SRC).forEach(k=>it.push({type:'tog',l:NEWS_SRC[k].name,get:()=>SET.news[k],fn:()=>{SET.news[k]=!SET.news[k];saveSet();buildSettings();render()}}));
+  it.push({type:'input',l:'Dodatni RSS',s:'Link na RSS vijesti (opcionalno)',key:'extraRss',ph:'https://…/rss'});
+  it.push({h:'Sistem'});
+  it.push({type:'btn',l:'Postavke TV-a',v:'Android postavke',fn:()=>B?B.openSystemSettings():toast('Otvaram Android postavke…')});
+  it.push({type:'btn',l:'Osvježi sve',v:'Vijesti, filmovi, kanali',fn:()=>{refreshAll(true);toast('Osvježavam…')}});
+  ST.items=it;
+  const L=$('#slist');L.innerHTML='';
+  it.forEach((x,j)=>{
+    const e=document.createElement('div');
+    if(x.h){e.className='sh';e.textContent=x.h;L.appendChild(e);return}
+    e.className='si';e.dataset.j=j;
+    e.innerHTML=`<div class="sl">${esc(x.l)}${x.s?`<small>${esc(x.s)}</small>`:''}</div>`+
+      (x.type==='input'?`<input type="text" placeholder="${esc(x.ph||'')}" value="${x.key.startsWith('__')?'':esc(SET[x.key]||'')}" spellcheck="false" autocomplete="off">`:
+       x.type==='tog'?`<div class="tog${x.get()?' on':''}"></div>`:`<div class="sv">${esc(x.v||'')}</div>`);
+    if(x.type==='input'){const inp=e.querySelector('input');
+      inp.addEventListener('change',()=>commitInput(x,inp));
+      inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();commitInput(x,inp);inp.blur()}});}
+    e.onclick=()=>{ST.i=j;render();LAYERS.settings.ok()};
+    L.appendChild(e);
+  });
+  if(!ST.items[ST.i]||ST.items[ST.i].h)ST.i=ST.items.findIndex(x=>!x.h);
+}
+function commitInput(x,inp){
+  const v=inp.value.trim();
+  if(x.key==='__addch'){if(v&&!SET.channels.some(c=>c.q===v)){SET.channels.push({q:v,id:null,name:v});saveSet();inp.value='';toast('Kanal dodan — učitavam…');loadYT().then(()=>{buildRows();buildSettings();render()})}return}
+  if(SET[x.key]===v)return;SET[x.key]=v;saveSet();
+  if(x.key==='city')loadWeather();
+  if(x.key==='tmdb')loadFilms().then(()=>{buildHero();buildRows();showFeatured(0,true)});
+  if(x.key==='m3u')loadLive(true).then(()=>{buildRows();buildSettings();render()});
+  if(x.key==='extraRss')loadNews().then(()=>buildRows());
+}
+LAYERS.settings={el:'settings',
+  render(){
+    document.querySelectorAll('#slist .focus').forEach(e=>e.classList.remove('focus'));
+    const e=document.querySelector(`#slist [data-j="${ST.i}"]`);if(!e)return;e.classList.add('focus');
+    const y=e.offsetTop;$('#slist').style.transform=`translateY(${-Math.max(0,y-300)}px)`;
+  },
+  key(k){
+    const step=d=>{let j=ST.i;do{j+=d}while(ST.items[j]&&ST.items[j].h);if(ST.items[j])ST.i=j};
+    if(k==='down')step(1);if(k==='up')step(-1);render()},
+  ok(){const x=ST.items[ST.i];if(!x)return;
+    if(x.type==='input'){const inp=document.querySelector(`#slist [data-j="${ST.i}"] input`);inp.focus();return}
+    x.fn&&x.fn()},
+  close(){document.activeElement&&document.activeElement.blur&&document.activeElement.blur()}
+};
+
+/* =====================================================================
+   DALJINSKI
+   ===================================================================== */
+const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right'};
+let okDown=0,okLong=false,okTimer=null;
+function back(){
+  const a=document.activeElement;if(a&&a.tagName==='INPUT'){a.blur();return true}
+  if(S.layer){popLayer();return true}
+  if(S.moving){S.moving=null;saveSet();render();return true}
+  if(S.row!==0){S.row=0;render();return true}
+  if(HERO.length>1){showFeatured(0)}
+  return false;
+}
+window.launcherBack=back;
+window.launcherMenu=()=>longPress();
+window.launcherPause=()=>{if(S.layer==='player'&&PL.yt&&PL.yt.pauseVideo){try{PL.yt.pauseVideo()}catch(e){}PL.playing=false;savePos()}};
+window.launcherResume=()=>{loadApps();if(S.layer==='grid'&&GR.kind==='apps')GR.items=D.apps;buildRows();render();if(Date.now()-lastRefresh>15*60e3)refreshAll()};
+
+document.addEventListener('keydown',e=>{
+  const a=document.activeElement,inInput=a&&a.tagName==='INPUT';
+  if(inInput){
+    if(e.key==='Escape'){e.preventDefault();a.blur()}
+    else if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();a.blur();LAYERS.settings.key(KEYMAP[e.key])}
+    return;
+  }
+  const k=e.key;
+  if(k==='Enter'||k===' '){e.preventDefault();
+    if(e.repeat||okDown)return;
+    okDown=Date.now();okLong=false;clearTimeout(okTimer);
+    okTimer=setTimeout(()=>{okLong=true;longPress()},650);
+    return;
+  }
+  if(k==='Escape'||k==='Backspace'||k==='GoBack'||k==='BrowserBack'){e.preventDefault();back();return}
+  if(k==='ContextMenu'){e.preventDefault();longPress();return}
+  const d=KEYMAP[k];if(!d)return;e.preventDefault();
+  $('#hint').style.opacity=0;
+  if(S.layer)return LAYERS[S.layer].key(d);
+  if(S.moving){if(d==='left')moveApp(-1);if(d==='right')moveApp(1);return}
+  if(d==='down'&&S.row<ROWS.length-1)S.row++;
+  else if(d==='up'&&S.row>-1)S.row--;
+  else if(d==='right'){
+    if(S.row===-1){}
+    else if(S.row===0){if(S.btn<HERO[S.feat].actions.length-1)S.btn++;else if(HERO.length>1)showFeatured(S.feat+1)}
+    else{const R=ROWS[S.row];S.col[R.key]=Math.min(curCol(R)+1,R.items.length-1)}
+  }else if(d==='left'){
+    if(S.row===0){if(S.btn>0)S.btn--;else if(HERO.length>1)showFeatured(S.feat-1)}
+    else if(S.row>0){const R=ROWS[S.row];S.col[R.key]=Math.max(curCol(R)-1,0)}
+  }
+  render();
+});
+document.addEventListener('keyup',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const a=document.activeElement;if(a&&a.tagName==='INPUT')return;
+  clearTimeout(okTimer);
+  if(okDown&&!okLong)activate();
+  okDown=0;okLong=false;
+});
+$('#gear').onclick=()=>{S.row=-1;render();openSettings()};
+
+/* ---------- sat ---------- */
+function tick(){
+  const d=new Date(),h=d.getHours();
+  $('#time').textContent=String(h).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  $('#date').textContent=`${DANI[d.getDay()]}, ${d.getDate()}. ${MJ[d.getMonth()]}`;
+  $('#greet').textContent=h<5?'Laku noć':h<12?'Dobro jutro':h<18?'Dobar dan':'Dobro veče';
+}
+setInterval(tick,10000);tick();
+
+/* ---------- skaliranje ---------- */
+function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);$('#stage').style.transform=`translate(-50%,-50%) scale(${s})`}
+addEventListener('resize',fit);fit();
+if(!DEMO)$('#hint').style.display='none';
+
+/* ---------- pokretanje ---------- */
+let lastRefresh=0;
+async function refreshAll(force){
+  lastRefresh=Date.now();
+  loadWeather();
+  const jobs=[loadNews(),loadFilms(),loadYT(),loadLive(force)];
+  jobs.forEach(p=>p.then(()=>{const heroWas=HERO.length&&HERO[0].t;buildHero();buildRows();if(!HERO.length||HERO[0].t!==heroWas)showFeatured(S.feat,true);render()}).catch(()=>{}));
+}
+loadApps();buildHero();buildRows();showFeatured(0,true);render();
+refreshAll();
+setInterval(()=>loadWeather(),30*60e3);
+setInterval(()=>{if(!S.layer)refreshAll()},20*60e3);
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "tmdb": "OVDJE_TMDB_API_KLJUC",
+  "m3u": "https://primjer.com/moja-lista.m3u",
+  "city": "",
+  "youtube": ["@kanal1", "@kanal2"]
+}
