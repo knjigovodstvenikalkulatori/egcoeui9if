@@ -123,16 +123,6 @@ $D shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1 || true
 $D shell cmd deviceidle whitelist +"$PKG" >/dev/null 2>&1 || true
 zeleno "Ekran je početni ekran i pokreće se pri paljenju TV-a"
 
-# ---- Ambilight: dozvole za Bluetooth i snimanje ekrana (bez pitanja na TV-u) ----
-for P in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION BLUETOOTH_SCAN BLUETOOTH_CONNECT; do
-  $D shell pm grant "$PKG" "android.permission.$P" >/dev/null 2>&1 || true
-done
-$D shell appops set "$PKG" PROJECT_MEDIA allow >/dev/null 2>&1 || true
-# Android do verzije 11 traži uključenu lokaciju da bi našao Bluetooth trake
-$D shell settings put secure location_mode 3 >/dev/null 2>&1 || true
-$D shell cmd location set-location-enabled true >/dev/null 2>&1 || true
-$D shell svc bluetooth enable >/dev/null 2>&1 || true
-
 # ---- 8. Ubrzanje: isključi reklame i nepotrebne pozadinske procese -------
 naslov "Ubrzavam TV (reklame i pozadinski procesi)"
 off com.google.android.tvrecommendations "preporuke i reklame"
