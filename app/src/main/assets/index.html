@@ -309,7 +309,7 @@ function loadSettings(){
   return s;
 }
 const saveSet=()=>store.set('settings',SET);
-window.launcherConfig=()=>{SET=loadSettings();refreshAll()};
+window.launcherConfig=()=>{SET=loadSettings();refreshAll(true);toast('Nove postavke primljene s laptopa')};
 
 /* ---------- demo slike ---------- */
 function hash(s){let h=2166136261;for(const c of String(s)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
