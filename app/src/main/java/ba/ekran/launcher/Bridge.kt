@@ -109,6 +109,59 @@ class Bridge(private val act: MainActivity) {
         }
     }
 
+    // ───────── Ambilight ─────────
+    private var lastAmbiStart = 0L
+
+    @JavascriptInterface
+    fun ambiStart() {
+        if (AmbiService.running) return
+        val now = android.os.SystemClock.uptimeMillis()
+        if (now - lastAmbiStart < 10000) return
+        lastAmbiStart = now
+        act.runOnUiThread {
+            try { act.startActivity(Intent(act, AmbiActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { toast("Ambilight se ne može pokrenuti") }
+        }
+    }
+
+    @JavascriptInterface
+    fun ambiStop() {
+        act.runOnUiThread { act.stopService(Intent(act, AmbiService::class.java)) }
+    }
+
+    /** {n, start, ccw, bright, fps, smooth, melk} */
+    @JavascriptInterface
+    fun ambiConfig(json: String) {
+        try {
+            val o = JSONObject(json)
+            act.getSharedPreferences("ambi", android.content.Context.MODE_PRIVATE).edit()
+                .putInt("n", o.optInt("n", 12))
+                .putFloat("start", o.optDouble("start", 0.0).toFloat())
+                .putBoolean("ccw", o.optBoolean("ccw", true))
+                .putInt("bright", o.optInt("bright", 100))
+                .putInt("fps", o.optInt("fps", 15))
+                .putInt("smooth", o.optInt("smooth", 50))
+                .putBoolean("melk", o.optBoolean("melk", true))
+                .apply()
+        } catch (e: Exception) { }
+    }
+
+    @JavascriptInterface
+    fun ambiTest() { AmbiService.testUntil = android.os.SystemClock.uptimeMillis() + 10000 }
+
+    @JavascriptInterface
+    fun ambiForget() {
+        act.getSharedPreferences("ambi", android.content.Context.MODE_PRIVATE).edit().remove("uac_mac").remove("melk_mac").apply()
+        ambiStop()
+    }
+
+    @JavascriptInterface
+    fun ambiStatus(): String = JSONObject()
+        .put("running", AmbiService.running)
+        .put("uac", AmbiService.uacStatus)
+        .put("melk", AmbiService.melkStatus)
+        .put("info", AmbiService.info)
+        .toString()
+
     private fun toast(msg: String) {
         act.runOnUiThread { Toast.makeText(act, msg, Toast.LENGTH_SHORT).show() }
     }

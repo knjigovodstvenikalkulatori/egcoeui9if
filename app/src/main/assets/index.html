@@ -297,7 +297,7 @@ const NEWS_SRC={
 };
 let SET = loadSettings();
 function loadSettings(){
-  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[],tvExtra:[]},store.get('settings',{}));
+  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[],tvExtra:[],ambi:{}},store.get('settings',{}));
   if(B){try{
     const c=JSON.parse(B.getConfig()||'{}');
     if(c&&c._ts&&c._ts!==s._cfgts){
@@ -310,6 +310,14 @@ function loadSettings(){
   return s;
 }
 const saveSet=()=>store.set('settings',SET);
+/* ---------- Ambilight ---------- */
+const AMBI_STARTS=['Gore lijevo (ugao)','Gore, sredina','Gore desno (ugao)','Desno, sredina','Dolje desno (ugao)','Dolje, sredina','Dolje lijevo (ugao)','Lijevo, sredina'];
+function ambiStartFrac(name){const W=16,H=9,P=2*(W+H);return ({'Gore, sredina':W/2,'Gore lijevo (ugao)':0,'Gore desno (ugao)':W,'Desno, sredina':W+H/2,'Dolje desno (ugao)':W+H,'Dolje, sredina':W+H+W/2,'Dolje lijevo (ugao)':2*W+H,'Lijevo, sredina':2*W+1.5*H}[name]||0)/P}
+function ambiCfg(){SET.ambi=Object.assign({on:false,n:12,start:'Gore lijevo (ugao)',ccw:true,bright:100,fps:15,smooth:50,melk:true},SET.ambi||{});return SET.ambi}
+function ambiPush(){const a=ambiCfg();if(B&&B.ambiConfig)B.ambiConfig(JSON.stringify({n:a.n,start:ambiStartFrac(a.start),ccw:a.ccw,bright:a.bright,fps:a.fps,smooth:a.smooth,melk:a.melk}))}
+let ambiTried=false;
+function ambiAuto(){const a=ambiCfg();if(!B||!B.ambiStart)return;ambiPush();if(a.on&&!ambiTried){ambiTried=true;B.ambiStart()}}
+function ambiStatusText(){if(!B||!B.ambiStatus)return 'Radi samo na TV-u';try{const x=JSON.parse(B.ambiStatus());if(!x.running)return x.info||'ugašen';return `kocka: ${x.uac} · C traka: ${x.melk}`}catch(e){return ''}}
 window.launcherConfig=()=>{SET=loadSettings();refreshAll(true);toast('Nove postavke primljene s laptopa')};
 
 /* ---------- demo slike ---------- */
@@ -992,6 +1000,20 @@ function buildSettings(){
   it.push({h:'Vijesti'});
   Object.keys(NEWS_SRC).forEach(k=>it.push({type:'tog',l:NEWS_SRC[k].name,get:()=>SET.news[k],fn:()=>{SET.news[k]=!SET.news[k];saveSet();buildSettings();render()}}));
   it.push({type:'input',l:'Dodatni RSS',s:'Link na RSS vijesti (opcionalno)',key:'extraRss',ph:'https://…/rss'});
+  const A=ambiCfg();
+  const cyc=(arr,key,suf='')=>{const i=arr.indexOf(A[key]);A[key]=arr[(i+1)%arr.length];saveSet();ambiPush();buildSettings();render();};
+  it.push({h:'Ambilight (LED oko TV-a)'});
+  it.push({type:'tog',l:'Ambilight',s:'Boje s ekrana idu na traku oko TV-a (ugasi uLamp na telefonu)',get:()=>A.on,fn:()=>{A.on=!A.on;saveSet();ambiPush();if(B){A.on?(ambiTried=true,B.ambiStart()):B.ambiStop()}toast(A.on?'Ambilight se pokreće…':'Ambilight ugašen');setTimeout(()=>{buildSettings();render()},2500);buildSettings();render()}});
+  it.push({type:'btn',l:'Stanje',v:ambiStatusText(),fn:()=>{buildSettings();render()}});
+  it.push({type:'btn',l:'Broj segmenata kocke',s:'Na koliko dijelova se dijeli traka',v:String(A.n),fn:()=>cyc([4,6,8,10,12,16,20,24,30],'n')});
+  it.push({type:'btn',l:'Gdje počinje segment 1',v:A.start,fn:()=>cyc(AMBI_STARTS,'start')});
+  it.push({type:'tog',l:'Smjer suprotno od kazaljke',s:'Promijeni ako boje idu naopako',get:()=>A.ccw,fn:()=>{A.ccw=!A.ccw;saveSet();ambiPush();buildSettings();render()}});
+  it.push({type:'btn',l:'Test segmenata',s:'10 s: 1 crvena, 2 zelena, 3 plava, 4 žuta, 5 ljubičasta, 6 tirkizna…',v:'OK = pokreni',fn:()=>{if(B&&B.ambiTest)B.ambiTest();toast('Test: segment 1 je crven, 2 zelen, 3 plav…')}});
+  it.push({type:'btn',l:'Jačina svjetla',v:A.bright+'%',fn:()=>cyc([25,50,75,100],'bright')});
+  it.push({type:'btn',l:'Brzina osvježavanja',v:A.fps+' puta u sekundi',fn:()=>cyc([8,12,15,20,25],'fps')});
+  it.push({type:'btn',l:'Mekoća prelaza',v:({0:'bez',30:'mala',50:'srednja',70:'velika'})[A.smooth]||A.smooth,fn:()=>cyc([0,30,50,70],'smooth')});
+  it.push({type:'tog',l:'C traka na zidu',s:'Prati boju lijeve strane ekrana',get:()=>A.melk,fn:()=>{A.melk=!A.melk;saveSet();ambiPush();buildSettings();render()}});
+  it.push({type:'btn',l:'Ponovo potraži trake',s:'Ako je traka zamijenjena ili se ne spaja',v:'OK',fn:()=>{if(B&&B.ambiForget){B.ambiForget();ambiTried=false;setTimeout(()=>{if(ambiCfg().on){B.ambiStart()}},1500)}toast('Tražim trake ponovo…')}});
   it.push({h:'Sistem'});
   it.push({type:'btn',l:'Postavke TV-a',v:'Android postavke',fn:()=>B?B.openSystemSettings():toast('Otvaram Android postavke…')});
   it.push({type:'btn',l:'Osvježi sve',v:'Vijesti, filmovi, kanali',fn:()=>{refreshAll(true);toast('Osvježavam…')}});
@@ -1052,7 +1074,7 @@ function back(){
 window.launcherBack=back;
 window.launcherMenu=()=>longPress();
 window.launcherPause=()=>{if(S.layer==='player'&&PL.yt&&PL.yt.pauseVideo){try{PL.yt.pauseVideo()}catch(e){}PL.playing=false;savePos()}};
-window.launcherResume=()=>{loadApps();if(S.layer==='grid'&&GR.kind==='apps')GR.items=D.apps;buildRows();render();if(Date.now()-lastRefresh>15*60e3)refreshAll()};
+window.launcherResume=()=>{if(B&&B.ambiStatus){try{if(ambiCfg().on&&!JSON.parse(B.ambiStatus()).running){ambiTried=false;setTimeout(ambiAuto,1000)}}catch(e){}}loadApps();if(S.layer==='grid'&&GR.kind==='apps')GR.items=D.apps;buildRows();render();if(Date.now()-lastRefresh>15*60e3)refreshAll()};
 
 document.addEventListener('keydown',e=>{
   const a=document.activeElement,inInput=a&&a.tagName==='INPUT';
@@ -1119,6 +1141,7 @@ async function refreshAll(force){
 }
 loadApps();buildHero();buildRows();showFeatured(0,true);render();
 refreshAll();
+setTimeout(ambiAuto,1500);
 setInterval(()=>loadWeather(),30*60e3);
 setInterval(()=>{if(!S.layer)refreshAll()},20*60e3);
 </script>
