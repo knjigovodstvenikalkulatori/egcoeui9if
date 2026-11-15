@@ -297,7 +297,7 @@ const NEWS_SRC={
 };
 let SET = loadSettings();
 function loadSettings(){
-  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[],tvExtra:[],ambi:{}},store.get('settings',{}));
+  const s=Object.assign({city:'',tmdb:'',lang:'hr-HR',m3u:'',channels:[],news:{google:true,n1:true,klix:true},extraRss:'',favApps:null,favLive:[],tvExtra:[],ambi:{},led:{}},store.get('settings',{}));
   if(B){try{
     const c=JSON.parse(B.getConfig()||'{}');
     if(c&&c._ts&&c._ts!==s._cfgts){
@@ -316,8 +316,14 @@ function ambiStartFrac(name){const W=16,H=9,P=2*(W+H);return ({'Gore, sredina':W
 function ambiCfg(){SET.ambi=Object.assign({on:false,n:12,start:'Gore lijevo (ugao)',ccw:true,bright:100,fps:15,smooth:50,melk:true},SET.ambi||{});return SET.ambi}
 function ambiPush(){const a=ambiCfg();if(B&&B.ambiConfig)B.ambiConfig(JSON.stringify({n:a.n,start:ambiStartFrac(a.start),ccw:a.ccw,bright:a.bright,fps:a.fps,smooth:a.smooth,melk:a.melk}))}
 let ambiTried=false;
-function ambiAuto(){const a=ambiCfg();if(!B||!B.ambiStart)return;ambiPush();if(a.on&&!ambiTried){ambiTried=true;B.ambiStart()}}
-function ambiStatusText(){if(!B||!B.ambiStatus)return 'Radi samo na TV-u';try{const x=JSON.parse(B.ambiStatus());if(!x.running)return x.info||'ugašen';return `kocka: ${x.uac} · C traka: ${x.melk}`}catch(e){return ''}}
+function ambiAuto(){const a=ambiCfg();if(!B||!B.ambiStart)return;ambiPush();if(a.on&&!ambiTried){ambiTried=true;B.ambiStart()}else if(!a.on)ledPush()}
+function ambiStatusText(){if(!B||!B.ambiStatus)return 'Radi samo na TV-u';try{const x=JSON.parse(B.ambiStatus());if(!x.running)return x.info||'ugašen';
+  const cap=x.capture?(x.frames>0?`ekran ✓ (${x.frames} sl.)`:'ekran: čekam sliku'):(ambiCfg().on?'ekran: nema dozvole':'ručna boja');
+  return `${cap} · kocka: ${x.uac} · C: ${x.melk}`}catch(e){return ''}}
+const LED_COLORS=[['Isključeno',null],['Toplo bijela','#ffb46b'],['Bijela','#ffffff'],['Crvena','#ff0000'],['Narandžasta','#ff6a00'],['Žuta','#ffd000'],['Zelena','#00ff40'],['Tirkizna','#00e5ff'],['Plava','#0040ff'],['Ljubičasta','#8a00ff'],['Roza','#ff2a6d']];
+const LED_FX=[['none','Mirno'],['breathe','Disanje'],['rainbow','Duga']];
+function ledCfg(){SET.led=Object.assign({i:0,fx:'none'},SET.led||{});return SET.led}
+function ledPush(){const L=ledCfg(),c=LED_COLORS[L.i]||LED_COLORS[0];if(B&&B.ledColor)B.ledColor(JSON.stringify({on:!!c[1],color:c[1]?parseInt(c[1].slice(1),16):0,effect:L.fx}))}
 window.launcherConfig=()=>{SET=loadSettings();refreshAll(true);toast('Nove postavke primljene s laptopa')};
 
 /* ---------- demo slike ---------- */
@@ -1014,6 +1020,10 @@ function buildSettings(){
   it.push({type:'btn',l:'Mekoća prelaza',v:({0:'bez',30:'mala',50:'srednja',70:'velika'})[A.smooth]||A.smooth,fn:()=>cyc([0,30,50,70],'smooth')});
   it.push({type:'tog',l:'C traka na zidu',s:'Prati boju lijeve strane ekrana',get:()=>A.melk,fn:()=>{A.melk=!A.melk;saveSet();ambiPush();buildSettings();render()}});
   it.push({type:'btn',l:'Ponovo potraži trake',s:'Ako je traka zamijenjena ili se ne spaja',v:'OK',fn:()=>{if(B&&B.ambiForget){B.ambiForget();ambiTried=false;setTimeout(()=>{if(ambiCfg().on){B.ambiStart()}},1500)}toast('Tražim trake ponovo…')}});
+  const L=ledCfg();
+  it.push({h:'Boja LED trake (kad je Ambilight ugašen)'});
+  it.push({type:'btn',l:'Boja',s:'OK = sljedeća boja',v:LED_COLORS[L.i][0],sw:LED_COLORS[L.i][1],fn:()=>{L.i=(L.i+1)%LED_COLORS.length;saveSet();ledPush();buildSettings();render()}});
+  it.push({type:'btn',l:'Efekat',v:(LED_FX.find(x=>x[0]===L.fx)||LED_FX[0])[1],fn:()=>{const k=LED_FX.findIndex(x=>x[0]===L.fx);L.fx=LED_FX[(k+1)%LED_FX.length][0];saveSet();ledPush();buildSettings();render()}});
   it.push({h:'Sistem'});
   it.push({type:'btn',l:'Postavke TV-a',v:'Android postavke',fn:()=>B?B.openSystemSettings():toast('Otvaram Android postavke…')});
   it.push({type:'btn',l:'Osvježi sve',v:'Vijesti, filmovi, kanali',fn:()=>{refreshAll(true);toast('Osvježavam…')}});
@@ -1025,7 +1035,7 @@ function buildSettings(){
     e.className='si';e.dataset.j=j;
     e.innerHTML=`<div class="sl">${esc(x.l)}${x.s?`<small>${esc(x.s)}</small>`:''}</div>`+
       (x.type==='input'?`<input type="text" placeholder="${esc(x.ph||'')}" value="${x.key.startsWith('__')?'':esc(SET[x.key]||'')}" spellcheck="false" autocomplete="off">`:
-       x.type==='tog'?`<div class="tog${x.get()?' on':''}"></div>`:`<div class="sv">${esc(x.v||'')}</div>`);
+       x.type==='tog'?`<div class="tog${x.get()?' on':''}"></div>`:`<div class="sv">${x.sw?`<span style="display:inline-block;width:26px;height:26px;border-radius:50%;background:${x.sw};vertical-align:middle;margin-right:12px;box-shadow:0 0 14px ${x.sw}"></span>`:''}${esc(x.v||'')}</div>`);
     if(x.type==='input'){const inp=e.querySelector('input');
       inp.addEventListener('change',()=>commitInput(x,inp));
       inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();ev.stopPropagation();commitInput(x,inp);inp.blur()}});}
@@ -1143,6 +1153,7 @@ loadApps();buildHero();buildRows();showFeatured(0,true);render();
 refreshAll();
 setTimeout(ambiAuto,1500);
 setInterval(()=>loadWeather(),30*60e3);
+setInterval(()=>{if(S.layer!=='settings')return;const j=ST.items.findIndex(x=>x.l==='Stanje');if(j<0)return;const e=document.querySelector(`#slist [data-j="${j}"] .sv`);if(e)e.textContent=ambiStatusText()},2000);
 setInterval(()=>{if(!S.layer)refreshAll()},20*60e3);
 </script>
 </body>

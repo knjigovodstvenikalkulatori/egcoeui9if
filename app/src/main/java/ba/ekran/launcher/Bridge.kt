@@ -125,7 +125,33 @@ class Bridge(private val act: MainActivity) {
 
     @JavascriptInterface
     fun ambiStop() {
-        act.runOnUiThread { act.stopService(Intent(act, AmbiService::class.java)) }
+        act.runOnUiThread {
+            act.stopService(Intent(act, AmbiService::class.java))
+            // ako je izabrana ručna boja, traka nastavlja s njom
+            if (act.getSharedPreferences("ambi", android.content.Context.MODE_PRIVATE).getBoolean("manual_on", false))
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ startLedService() }, 1200)
+        }
+    }
+
+    private fun startLedService() {
+        val i = Intent(act, AmbiService::class.java)
+        try { if (android.os.Build.VERSION.SDK_INT >= 26) act.startForegroundService(i) else act.startService(i) } catch (e: Exception) { }
+    }
+
+    /** Ručna boja kad Ambilight ne radi: {on, color (0xRRGGBB), effect: none|breathe|rainbow} */
+    @JavascriptInterface
+    fun ledColor(json: String) {
+        try {
+            val o = JSONObject(json)
+            val on = o.optBoolean("on", false)
+            act.getSharedPreferences("ambi", android.content.Context.MODE_PRIVATE).edit()
+                .putBoolean("manual_on", on)
+                .putInt("color", o.optInt("color", 0xFFB46B))
+                .putString("effect", o.optString("effect", "none"))
+                .apply()
+            if (AmbiService.hasProjection) return          // Ambilight ima prednost
+            act.runOnUiThread { if (on) startLedService() else act.stopService(Intent(act, AmbiService::class.java)) }
+        } catch (e: Exception) { }
     }
 
     /** {n, start, ccw, bright, fps, smooth, melk} */
@@ -160,6 +186,9 @@ class Bridge(private val act: MainActivity) {
         .put("uac", AmbiService.uacStatus)
         .put("melk", AmbiService.melkStatus)
         .put("info", AmbiService.info)
+        .put("capture", AmbiService.hasProjection)
+        .put("frames", AmbiService.frames)
+        .put("light", AmbiService.lastBrightness)
         .toString()
 
     private fun toast(msg: String) {

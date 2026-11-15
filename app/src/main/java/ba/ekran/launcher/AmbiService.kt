@@ -40,6 +40,10 @@ class AmbiService : Service() {
         @Volatile var uacStatus = "nije spojena"
         @Volatile var melkStatus = "isključena"
         @Volatile var info = ""
+        @Volatile var hasProjection = false
+        @Volatile var frames = 0L
+        @Volatile var lastBrightness = -1
+        fun log(m: String) { android.util.Log.i("Ekran", "Ambi: $m") }
 
         // test boje: 1 crvena, 2 zelena, 3 plava, 4 žuta, 5 ljubičasta, 6 tirkizna, 7 bijela, 8 narandžasta …
         val TEST = intArrayOf(0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF, 0xFFFFFF, 0xFF8000, 0x8000FF, 0x00FF80)
@@ -47,6 +51,8 @@ class AmbiService : Service() {
 
     private val W = 64
     private val H = 36
+    private val CW = 256      // snima se 256×144 pa se smanji na 64×36 (pouzdanije na TV čipovima)
+    private val CH = 144
     private var projection: MediaProjection? = null
     private var vdisplay: VirtualDisplay? = null
     private var reader: ImageReader? = null
@@ -77,59 +83,129 @@ class AmbiService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private var started = false
+    private var colorLoop: Runnable? = null
+    private var t0 = SystemClock.uptimeMillis()
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startFg()
-        if (projection != null) return START_NOT_STICKY
         val code = intent?.getIntExtra(EXTRA_CODE, 0) ?: 0
         @Suppress("DEPRECATION")
         val data: Intent? = intent?.getParcelableExtra(EXTRA_DATA)
-        if (data == null) { stopSelf(); return START_NOT_STICKY }
+        startFg(data != null)
+        if (!started) {
+            started = true
+            thread = HandlerThread("ambi").also { it.start() }
+            handler = Handler(thread.looper)
+            running = true
+            uac = LedLink(this, LedLink.Kind.UAC, handler).also { it.start() }
+            melk = LedLink(this, LedLink.Kind.MELK, handler)
+            if (prefs.getBoolean("melk", true)) melk?.start()
+            val f = IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) }
+            registerReceiver(screenRx, f)
+            handler.postDelayed(object : Runnable {
+                override fun run() {
+                    uac?.let { if (!it.ready) it.connect(); uacStatus = it.status }
+                    melk?.let {
+                        if (prefs.getBoolean("melk", true)) { if (!it.started) it.start() else if (!it.ready) it.connect(); melkStatus = it.status }
+                        else melkStatus = "isključena"
+                    }
+                    if (running) handler.postDelayed(this, 2000)
+                }
+            }, 1000)
+            log("servis pokrenut")
+        }
+        if (data != null && projection == null) {
+            handler.post { setupProjection(code, data) }
+        } else if (projection == null) {
+            if (!prefs.getBoolean("manual_on", false)) { log("ništa za raditi, gasim"); stopSelf(); return START_NOT_STICKY }
+            startColorLoop()
+        }
+        return START_NOT_STICKY
+    }
+
+    private fun setupProjection(code: Int, data: Intent) {
         try {
             val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = mpm.getMediaProjection(code, data)
         } catch (e: Exception) {
-            info = "snimanje ekrana nije dozvoljeno"
-            stopSelf(); return START_NOT_STICKY
+            info = "snimanje ekrana nije dozvoljeno (${e.javaClass.simpleName})"
+            log(info); return
         }
-        val p = projection ?: run { stopSelf(); return START_NOT_STICKY }
-
-        thread = HandlerThread("ambi").also { it.start() }
-        handler = Handler(thread.looper)
-        running = true
+        val p = projection ?: run { info = "snimanje ekrana nije dobijeno"; log(info); return }
+        stopColorLoop()
+        hasProjection = true
         info = ""
-
-        uac = LedLink(this, LedLink.Kind.UAC, handler).also { it.start() }
-        melk = LedLink(this, LedLink.Kind.MELK, handler)
-        if (prefs.getBoolean("melk", true)) melk?.start()
-
         p.registerCallback(object : MediaProjection.Callback() {
-            override fun onStop() { handler.post { stopSelf() } }
+            override fun onStop() {
+                log("snimanje ekrana zaustavljeno od sistema")
+                hasProjection = false; projection = null
+                handler.post { if (prefs.getBoolean("manual_on", false)) startColorLoop() else stopSelf() }
+            }
         }, handler)
-
-        val r = ImageReader.newInstance(W, H, PixelFormat.RGBA_8888, 2)
+        val r = ImageReader.newInstance(CW, CH, PixelFormat.RGBA_8888, 2)
         r.setOnImageAvailableListener({ onImage(it) }, handler)
         reader = r
-        vdisplay = p.createVirtualDisplay("ekran-ambilight", W, H, resources.displayMetrics.densityDpi,
+        vdisplay = p.createVirtualDisplay("ekran-ambilight", CW, CH, resources.displayMetrics.densityDpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, r.surface, null, handler)
-
-        val f = IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) }
-        registerReceiver(screenRx, f)
-
-        // održavanje veze (ponovno spajanje ako traka "ispadne")
-        handler.postDelayed(object : Runnable {
-            override fun run() {
-                uac?.let { if (!it.ready) it.connect(); uacStatus = it.status }
-                melk?.let {
-                    if (prefs.getBoolean("melk", true)) { if (!it.started) it.start() else if (!it.ready) it.connect(); melkStatus = it.status }
-                    else melkStatus = "isključena"
-                }
-                if (running) handler.postDelayed(this, 2000)
-            }
-        }, 2000)
-        return START_NOT_STICKY
+        log("snimanje ekrana pokrenuto ${CW}x$CH, display=${vdisplay != null}")
     }
 
-    private fun startFg() {
+    /** Ručna boja / efekat kad Ambilight ne radi. */
+    private fun startColorLoop() {
+        if (colorLoop != null) return
+        log("ručna boja pokrenuta")
+        val loop = object : Runnable {
+            override fun run() {
+                if (projection != null || colorLoop !== this) return
+                if (!prefs.getBoolean("manual_on", false)) { colorLoop = null; stopSelf(); return }
+                if (screenOn) manualTick(SystemClock.uptimeMillis())
+                handler.postDelayed(this, 90)
+            }
+        }
+        colorLoop = loop
+        handler.post(loop)
+    }
+
+    private fun stopColorLoop() { colorLoop = null }
+
+    private fun manualTick(now: Long) {
+        val u = uac ?: return
+        val base = prefs.getInt("color", 0xFFB46B)
+        val fx = prefs.getString("effect", "none") ?: "none"
+        val bright = prefs.getInt("bright", 100).coerceIn(5, 100) / 100f
+        val t = (now - t0) / 1000f
+        val n = minOf(prefs.getInt("n", 12).coerceIn(1, 60), u.maxSegments)
+        val cols = IntArray(n)
+        val hsv = FloatArray(3)
+        for (i in 0 until n) {
+            var c = base
+            when (fx) {
+                "rainbow" -> { hsv[0] = ((t / 20f + i.toFloat() / n) % 1f) * 360f; hsv[1] = 1f; hsv[2] = 1f; c = Color.HSVToColor(hsv) and 0xFFFFFF }
+                "breathe" -> c = scale(base, 0.12f + 0.88f * (0.5f + 0.5f * kotlin.math.sin(t * 1.2f)))
+            }
+            cols[i] = scale(c, bright)
+        }
+        val prev = lastUac
+        if (prev == null || changed(prev, cols) || now - lastUacAt > 2500) {
+            if (u.send(cols)) { lastUac = cols; lastUacAt = now }
+        }
+        val m = melk
+        if (m != null && m.ready && prefs.getBoolean("melk", true)) {
+            val c = cols[0]
+            if (lastMelk < 0 || dist(c, lastMelk) > 6 || now - lastMelkAt > 2500) {
+                if (m.send(intArrayOf(c))) { lastMelk = c; lastMelkAt = now }
+            }
+        }
+    }
+
+    private fun scale(c: Int, f: Float): Int {
+        val r = (((c shr 16) and 0xFF) * f).toInt().coerceIn(0, 255)
+        val g = (((c shr 8) and 0xFF) * f).toInt().coerceIn(0, 255)
+        val b = ((c and 0xFF) * f).toInt().coerceIn(0, 255)
+        return (r shl 16) or (g shl 8) or b
+    }
+
+    private fun startFg(projectionType: Boolean) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val builder: Notification.Builder
         if (Build.VERSION.SDK_INT >= 26) {
@@ -140,7 +216,7 @@ class AmbiService : Service() {
             builder = Notification.Builder(this)
         }
         val n: Notification = builder.setContentTitle("Ambilight radi").setSmallIcon(R.drawable.ic_launcher).setOngoing(true).build()
-        if (Build.VERSION.SDK_INT >= 29) startForeground(42, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        if (Build.VERSION.SDK_INT >= 29 && projectionType) startForeground(42, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
         else startForeground(42, n)
     }
 
@@ -155,17 +231,24 @@ class AmbiService : Service() {
             val buf = plane.buffer
             val rs = plane.rowStride
             val ps = plane.pixelStride
-            val w = minOf(img.width, W)
-            val h = minOf(img.height, H)
-            for (y in 0 until h) {
-                val row = y * rs
-                for (x in 0 until w) {
-                    val o = row + x * ps
-                    px[y * W + x] = ((buf.get(o).toInt() and 0xFF) shl 16) or
-                                    ((buf.get(o + 1).toInt() and 0xFF) shl 8) or
-                                    (buf.get(o + 2).toInt() and 0xFF)
+            val fx = img.width / W
+            val fy = img.height / H
+            var sum = 0L
+            for (y in 0 until H) {
+                for (x in 0 until W) {
+                    // prosjek 2×2 tačke iz svakog bloka
+                    var r = 0; var g = 0; var b = 0
+                    for (dy in 0..1) for (dx in 0..1) {
+                        val o = (y * fy + dy * (fy / 2)) * rs + (x * fx + dx * (fx / 2)) * ps
+                        r += buf.get(o).toInt() and 0xFF; g += buf.get(o + 1).toInt() and 0xFF; b += buf.get(o + 2).toInt() and 0xFF
+                    }
+                    px[y * W + x] = ((r / 4) shl 16) or ((g / 4) shl 8) or (b / 4)
+                    sum += (r + g + b) / 12
                 }
             }
+            frames++
+            lastBrightness = (sum / (W * H)).toInt()
+            if (frames == 1L || frames % 600 == 0L) log("slika #$frames ${img.width}x${img.height}, prosječna svjetlina $lastBrightness")
             process(now)
         } catch (e: Exception) {
             info = "greška: ${e.javaClass.simpleName}"
@@ -294,6 +377,9 @@ class AmbiService : Service() {
 
     override fun onDestroy() {
         running = false
+        hasProjection = false
+        colorLoop = null
+        log("servis ugašen")
         try { unregisterReceiver(screenRx) } catch (e: Exception) { }
         try { vdisplay?.release() } catch (e: Exception) { }
         try { reader?.close() } catch (e: Exception) { }

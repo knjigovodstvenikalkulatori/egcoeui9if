@@ -28,7 +28,7 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
     enum class Kind { UAC, MELK }
 
     @Volatile var status: String = "nije spojena"
-        private set
+        private set(v) { if (field != v) android.util.Log.i("Ekran", "LED ${kind}: $v"); field = v }
     @Volatile var ready = false
         private set
     var started = false
@@ -44,6 +44,8 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
     private var tid = Random.nextInt(256)
     private var scanning = false
     private var scanCb: ScanCallback? = null
+    private var fails = 0
+    private var sent = 0L
 
     private val prefs = ctx.getSharedPreferences("ambi", Context.MODE_PRIVATE)
     private val macKey = if (kind == Kind.UAC) "uac_mac" else "melk_mac"
@@ -92,6 +94,7 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
                 if (!scanning || !matches(result)) return
                 scanning = false
                 try { sc.stopScan(this) } catch (e: Exception) { }
+                android.util.Log.i("Ekran", "LED ${kind}: pronađena ${result.device.name} ${result.device.address}")
                 prefs.edit().putString(macKey, result.device.address).apply()
                 handler.post { open(result.device) }
             }
@@ -131,6 +134,7 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 handler.post { if (!g.requestMtu(247)) g.discoverServices() }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                android.util.Log.i("Ekran", "LED ${kind}: veza prekinuta, status=$st")
                 ready = false; connecting = false; busy = false
                 try { g.close() } catch (e: Exception) { }
                 if (gatt === g) gatt = null
@@ -140,6 +144,7 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
 
         override fun onMtuChanged(g: BluetoothGatt, m: Int, st: Int) {
             mtu = if (st == BluetoothGatt.GATT_SUCCESS) m else 23
+            android.util.Log.i("Ekran", "LED ${kind}: MTU $mtu")
             handler.post { g.discoverServices() }
         }
 
@@ -173,7 +178,8 @@ class LedLink(private val ctx: Context, val kind: Kind, private val handler: Han
         c.value = bytes
         busy = true; busySince = now
         val ok = try { g.writeCharacteristic(c) } catch (e: Exception) { false }
-        if (!ok) busy = false
+        if (!ok) { busy = false; fails++; if (fails % 50 == 1) android.util.Log.w("Ekran", "LED ${kind}: slanje odbijeno ($fails)") }
+        else { sent++; if (sent == 1L || sent % 300 == 0L) android.util.Log.i("Ekran", "LED ${kind}: poslano paketa $sent, zadnji ${bytes.size} B") }
         return ok
     }
 
