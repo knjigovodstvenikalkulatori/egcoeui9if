@@ -41,6 +41,13 @@ class MainActivity : Activity() {
         s.cacheMode = WebSettings.LOAD_DEFAULT
         s.loadWithOverviewMode = true
         s.useWideViewPort = true
+        s.textZoom = 100
+        s.setSupportZoom(false)
+        s.builtInZoomControls = false
+        s.displayZoomControls = false
+        // Launcher je dizajniran za 1920×1080 — prilagodi ga stvarnoj rezoluciji ekrana.
+        val dm = resources.displayMetrics
+        web.setInitialScale(Math.max(1, (dm.widthPixels * 100f / 1920f).toInt()))
 
         loader = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))

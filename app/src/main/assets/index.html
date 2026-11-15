@@ -2,7 +2,7 @@
 <html lang="bs">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=1920, user-scalable=no">
 <title>Ekran — TV launcher</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,9 +14,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;background:#04050a;transform-origin:center}
 
 /* pozadina */
-.bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.06);transition:opacity 1.2s var(--ease),transform 9s linear;will-change:opacity,transform}
+.bg{position:absolute;top:0;right:0;bottom:0;left:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.06);transition:opacity 1.2s var(--ease),transform 9s linear;will-change:opacity,transform}
 .bg.on{opacity:1;transform:scale(1)}
-.shade{position:absolute;inset:0;pointer-events:none;background:
+.shade{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;background:
   linear-gradient(90deg,rgba(4,5,10,.94) 0%,rgba(4,5,10,.7) 32%,rgba(4,5,10,.1) 68%,rgba(4,5,10,0) 100%),
   linear-gradient(0deg,rgba(4,5,10,1) 0%,rgba(4,5,10,.88) 26%,rgba(4,5,10,0) 58%),
   linear-gradient(180deg,rgba(4,5,10,.6) 0%,rgba(4,5,10,0) 22%)}
@@ -81,7 +81,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 .strip{display:flex;gap:30px;padding-left:var(--pad);transition:transform .5s var(--ease);will-change:transform}
 .card{flex:none;position:relative;transition:transform .32s var(--ease);cursor:pointer}
 .card .img{position:relative;width:100%;border-radius:22px;background-size:cover;background-position:center;overflow:hidden;background-color:#151821;transition:box-shadow .32s var(--ease)}
-.card .img::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 38%);opacity:0;transition:opacity .35s;pointer-events:none}
+.card .img::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 38%);opacity:0;transition:opacity .35s;pointer-events:none}
 .card.focus{transform:scale(1.1);z-index:3}
 .card.focus .img{box-shadow:0 0 0 4px #fff,0 34px 70px rgba(0,0,0,.65)}
 .card.focus .img::after{opacity:1}
@@ -90,7 +90,7 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 
 .app .img,.live .img{display:flex;align-items:center;justify-content:center}
 .app .img svg{width:64px;height:64px}
-.app .img img.banner{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.app .img img.banner{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;object-fit:cover}
 .app .img img.ico{width:96px;height:96px;object-fit:contain}
 .app.glass .img{background:rgba(255,255,255,.1)}
 .app .lbl,.live .lbl{position:absolute;left:-20px;right:-20px;top:calc(100% + 18px);text-align:center;font-size:21px;font-weight:600;opacity:0;transform:translateY(-6px);transition:opacity .25s,transform .3s var(--ease);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -111,14 +111,14 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 .news .src{position:absolute;left:16px;top:14px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);border-radius:8px;padding:4px 10px;font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 .news .cap b{-webkit-line-clamp:3}
 
-.poster .img::before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.75) 0%,rgba(0,0,0,0) 50%)}
+.poster .img::before{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(0deg,rgba(0,0,0,.75) 0%,rgba(0,0,0,0) 50%)}
 .poster .ptitle{position:absolute;left:20px;right:20px;bottom:22px;font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
 .poster .ptitle small{display:block;font-size:15px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:8px}
 .poster.real .ptitle,.poster.real .img::before{display:none}
 .rate{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.65);border-radius:8px;padding:3px 9px;font-size:16px;font-weight:800;color:#ffd166}
 
 /* slojevi (overlay) */
-.layer{position:absolute;inset:0;z-index:20;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
+.layer{position:absolute;top:0;right:0;bottom:0;left:0;z-index:20;opacity:0;pointer-events:none;transition:opacity .4s var(--ease)}
 .layer.on{opacity:1;pointer-events:auto}
 .glassbg{background:rgba(8,10,16,.66);backdrop-filter:blur(44px) saturate(1.5);-webkit-backdrop-filter:blur(44px) saturate(1.5)}
 .layer h2{position:absolute;top:70px;left:var(--pad);font-size:52px;font-weight:800;letter-spacing:-.04em}
@@ -143,8 +143,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 
 /* player */
 #player{background:#000}
-#ytWrap,#ytWrap iframe{position:absolute;inset:0;width:1920px;height:1080px;border:0}
-#plBg{position:absolute;inset:0;background-size:cover;background-position:center;filter:brightness(.4)}
+#ytWrap,#ytWrap iframe{position:absolute;top:0;right:0;bottom:0;left:0;width:1920px;height:1080px;border:0}
+#plBg{position:absolute;top:0;right:0;bottom:0;left:0;background-size:cover;background-position:center;filter:brightness(.4)}
 .spin{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px;border-radius:50%;border:5px solid rgba(255,255,255,.2);border-top-color:#fff;animation:sp 1s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 .osd{position:absolute;left:0;right:0;bottom:0;padding:120px var(--pad) 64px;background:linear-gradient(0deg,rgba(0,0,0,.85),rgba(0,0,0,0));transition:opacity .4s;z-index:3}
@@ -179,6 +179,11 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .hint{position:absolute;left:50%;transform:translateX(-50%);top:16px;z-index:30;font-size:16px;color:rgba(255,255,255,.45);display:flex;gap:10px;align-items:center;transition:opacity .6s}
 .hint kbd{font-family:inherit;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px 8px;color:rgba(255,255,255,.75)}
+/* stari TV WebView bez flex "gap" */
+.nogap .strip>*{margin-right:30px}.nogap .actions>*{margin-right:18px}.nogap .meta>*{margin-right:14px}
+.nogap .kicker>*{margin-right:12px}.nogap .tright>*{margin-left:44px}.nogap .weather>*{margin-right:16px}
+.nogap .btn svg{margin-right:14px}.nogap .hello .orb{margin-right:14px}.nogap .dots>*{margin-right:10px}
+.nogap .row h3 small{margin-left:14px}.nogap .si>*{margin-right:30px}.nogap .obar>*{margin-right:24px}
 </style>
 </head>
 <body>
@@ -265,6 +270,8 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
    Mrežni zahtjevi idu kroz /net?u=... (Android ih šalje, bez CORS-a).
    U browseru (pregled) radi demo režim s izmišljenim podacima.
    ===================================================================== */
+if(!Promise.allSettled)Promise.allSettled=ps=>Promise.all(ps.map(p=>Promise.resolve(p).then(v=>({status:'fulfilled',value:v}),e=>({status:'rejected',reason:e}))));
+(function(){const d=document.createElement('div');d.style.cssText='display:flex;flex-direction:column;row-gap:1px;position:absolute';d.innerHTML='<div></div><div></div>';document.documentElement.appendChild(d);if(d.scrollHeight!==1)document.documentElement.classList.add('nogap');d.remove()})();
 const B = window.LauncherBridge || null;
 const DEMO = !B;
 const $ = s => document.querySelector(s);
@@ -1088,8 +1095,8 @@ function tick(){
 setInterval(tick,10000);tick();
 
 /* ---------- skaliranje ---------- */
-function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);$('#stage').style.transform=`translate(-50%,-50%) scale(${s})`}
-addEventListener('resize',fit);fit();
+function fit(){const w=window.innerWidth||document.documentElement.clientWidth,h=window.innerHeight||document.documentElement.clientHeight;if(!w||!h)return;const s=Math.min(w/1920,h/1080);$('#stage').style.transform=`translate(-50%,-50%) scale(${s})`}
+addEventListener('resize',fit);fit();setTimeout(fit,300);setTimeout(fit,1500);
 if(!DEMO)$('#hint').style.display='none';
 
 /* ---------- pokretanje ---------- */

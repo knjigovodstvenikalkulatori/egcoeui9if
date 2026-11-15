@@ -99,14 +99,53 @@ fi
 # _ts govori launcheru da je konfiguracija nova
 CFG="$(sed 's/^{/{"_ts":"'"$(date +%s)"'",/' config.json | base64 | tr -d '\n')"
 
-# ---- 7. Postavi kao početni ekran --------------------------------------
+# ---- 7. Postavi kao početni ekran (i kod paljenja TV-a) ------------------
 naslov "Postavljam Ekran kao početni ekran"
-$D shell cmd package set-home-activity "$PKG/.MainActivity" >/dev/null 2>&1 || true
-for L in com.google.android.tvlauncher com.google.android.leanbacklauncher com.google.android.apps.tv.launcherx com.mitv.tvhome.atv com.mitv.tvhome.michannel; do
-  if $D shell pm list packages 2>/dev/null | tr -d '\r' | grep -qx "package:$L"; then
-    $D shell pm disable-user --user 0 "$L" >/dev/null 2>&1 && echo "  isključen stari launcher: $L" || true
+touch .ekran_disabled
+off(){ # isključi paket ako postoji i zapamti ga za vrati.sh
+  if echo "$PKGS" | grep -qx "package:$1"; then
+    if $D shell pm disable-user --user 0 "$1" >/dev/null 2>&1; then
+      grep -qx "$1" .ekran_disabled || echo "$1" >> .ekran_disabled
+      echo "  isključeno: $1 ${2:+— $2}"
+    fi
   fi
+}
+PKGS="$($D shell pm list packages 2>/dev/null | tr -d '\r')"
+# svi drugi launcheri (sve što se prijavljuje kao Home), osim sistemskih postavki
+HOMES="$($D shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null | tr -d '\r' | grep '/' | cut -d/ -f1 | sed 's/^ *//' | sort -u)"
+for L in $HOMES com.google.android.tvlauncher com.google.android.leanbacklauncher com.google.android.apps.tv.launcherx com.mitv.tvhome.atv com.mitv.tvhome.michannel; do
+  case "$L" in "$PKG"|com.android.settings|com.android.tv.settings|com.android.provision|com.google.android.tungsten.setupwraith|"") continue;; esac
+  off "$L" "stari launcher"
 done
+$D shell cmd package set-home-activity "$PKG/.MainActivity" >/dev/null 2>&1 || true
+# dozvola da se Ekran sam otvori kad se TV upali
+$D shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1 || true
+$D shell cmd deviceidle whitelist +"$PKG" >/dev/null 2>&1 || true
+zeleno "Ekran je početni ekran i pokreće se pri paljenju TV-a"
+
+# ---- 8. Ubrzanje: isključi reklame i nepotrebne pozadinske procese -------
+naslov "Ubrzavam TV (reklame i pozadinski procesi)"
+off com.google.android.tvrecommendations "preporuke i reklame"
+off com.google.android.leanbacklauncher.recommendations "preporuke"
+off com.google.android.backdrop "Ambient pozadine (troše internet i memoriju)"
+off com.google.android.apps.tv.dreamx "Google screensaver"
+off com.google.android.feedback "slanje povratnih informacija"
+off com.google.android.tv.bugreportsender "slanje izvještaja o greškama"
+off com.google.android.play.games "Play Igre"
+off com.google.android.videos "Play Filmovi"
+off com.google.android.tv "Live Channels (Ekran ima svoj TV uživo)"
+off com.mitv.tvhome.michannel "Xiaomi kanali"
+off com.xiaomi.mitv.calendar "Xiaomi kalendar"
+read -r -p "Isključiti i Google Assistant (glasovna pretraga na mikrofonu daljinskog)? Najviše ubrzava. (d/n) " GA
+[ "$GA" = "d" ] && off com.google.android.katniss "Google Assistant"
+$D shell pm trim-caches 999G >/dev/null 2>&1 || true
+$D shell settings put global package_verifier_user_consent -1 >/dev/null 2>&1 || true
+$D shell am kill-all >/dev/null 2>&1 || true
+zeleno "Gotovo (sve se vraća sa ./vrati.sh)"
+
+WV="$($D shell dumpsys package com.google.android.webview 2>/dev/null | tr -d '\r' | grep -m1 versionName | cut -d= -f2)"
+[ -n "$WV" ] && echo "  Android System WebView: $WV (ako je ispod 100, ažuriraj ga u Play trgovini — Ekran će raditi brže)"
+
 $D shell am start -n "$PKG/.MainActivity" --es config "$CFG" >/dev/null
 zeleno "Gotovo! Ekran je pokrenut na TV-u. 🎉"
-echo "Za vraćanje starog launchera: ./vrati.sh"
+echo "Za vraćanje svega na staro: ./vrati.sh"
