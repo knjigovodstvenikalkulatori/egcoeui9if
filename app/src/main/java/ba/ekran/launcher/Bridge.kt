@@ -126,8 +126,19 @@ class Bridge(private val act: MainActivity) {
         for (slot in KeyService.SOURCES.keys) {
             o.put(slot, JSONObject().put("to", p.getString("to_$slot", null) ?: JSONObject.NULL).put("key", p.getInt("key_$slot", -1)))
         }
+        o.put("events", JSONArray(KeyService.lastEvents()))
+        o.put("learning", KeyService.learnSlot ?: JSONObject.NULL)
         return o.toString()
     }
+
+    @JavascriptInterface
+    fun keyLearn(slot: String) {
+        KeyService.learnSlot = slot
+        KeyService.learnUntil = android.os.SystemClock.uptimeMillis() + 15000
+    }
+
+    @JavascriptInterface
+    fun keyForget(slot: String) { KeyService.prefs(act).edit().remove("key_$slot").apply() }
 
     private fun toast(msg: String) {
         act.runOnUiThread { Toast.makeText(act, msg, Toast.LENGTH_SHORT).show() }

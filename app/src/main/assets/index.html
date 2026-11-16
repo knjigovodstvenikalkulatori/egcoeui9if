@@ -1089,8 +1089,15 @@ function buildSettings(){
   [['netflix','Netflix dugme'],['prime','Prime Video dugme']].forEach(([slot,label])=>{
     const cur=KS[slot]&&KS[slot].to;const app=cur&&appBy(cur);
     it.push({type:'btn',l:label+' otvara',s:'OK = izaberi aplikaciju',v:app?app.label:(cur?cur:'(kao i do sada)'),fn:()=>openGrid('pick',a=>{keyMap(slot,a.pkg);toast(`${label} sada otvara ${a.label}`);buildSettings();render()})});
-    if(cur)it.push({type:'btn',l:label+': vrati na staro',v:'OK',fn:()=>{keyMap(slot,'');toast(`${label} radi kao i ranije`);buildSettings();render()}});
+    if(cur){
+      const learned=KS[slot]&&KS[slot].key>=0;
+      it.push({type:'btn',l:'Nauči '+label,s:learned?`Naučeno (tipka ${KS[slot].key}) — radi bez otvaranja ${slot==='netflix'?'Netflixa':'Prime-a'}`:'Preporučeno: OK, pa pritisni to dugme na daljinskom',v:learned?'✓ naučeno':'OK',
+        fn:()=>{if(B&&B.keyLearn){B.keyLearn(slot);toast(`Pritisni sada ${label} na daljinskom (15 s)`);setTimeout(()=>{if(S.layer==='settings'){buildSettings();render()}},6000)}}});
+      it.push({type:'btn',l:label+': vrati na staro',v:'OK',fn:()=>{keyMap(slot,'');if(B&&B.keyForget)B.keyForget(slot);toast(`${label} radi kao i ranije`);buildSettings();render()}});
+    }
   });
+  const ev=(KS.events||[]).slice(0,4);
+  it.push({type:'btn',l:'Zadnji događaji dugmadi',s:ev.length?ev.join('  ·  '):'Pritisni Netflix ili Prime dugme, pa se vrati ovdje',v:'OK = osvježi',fn:()=>{buildSettings();render()}});
   it.push({h:'Sistem'});
   it.push({type:'btn',l:'Postavke TV-a',v:'Android postavke',fn:()=>B?B.openSystemSettings():toast('Otvaram Android postavke…')});
   it.push({type:'btn',l:'Osvježi sve',v:'Vijesti, filmovi, kanali',fn:()=>{refreshAll(true);toast('Osvježavam…')}});
