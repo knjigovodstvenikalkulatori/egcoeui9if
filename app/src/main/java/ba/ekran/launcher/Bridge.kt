@@ -48,6 +48,8 @@ class Bridge(private val act: MainActivity) {
                 toast("Aplikacija se ne može otvoriti")
             } else {
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                KeyService.lastEkranLaunchPkg = pkg
+                KeyService.lastEkranLaunchAt = android.os.SystemClock.uptimeMillis()
                 try { act.startActivity(i) } catch (e: Exception) { toast("Aplikacija se ne može otvoriti") }
             }
         }
@@ -107,6 +109,24 @@ class Bridge(private val act: MainActivity) {
             val i = Intent(act, PlayerActivity::class.java).putExtra("index", index.coerceIn(0, list.size - 1))
             act.startActivity(i)
         }
+    }
+
+    // ───────── dugmad na daljinskom ─────────
+    @JavascriptInterface
+    fun keyMap(slot: String, pkg: String) {
+        val e = KeyService.prefs(act).edit()
+        if (pkg.isBlank()) e.remove("to_$slot") else e.putString("to_$slot", pkg)
+        e.apply()
+    }
+
+    @JavascriptInterface
+    fun keyStatus(): String {
+        val p = KeyService.prefs(act)
+        val o = JSONObject().put("enabled", KeyService.instance != null)
+        for (slot in KeyService.SOURCES.keys) {
+            o.put(slot, JSONObject().put("to", p.getString("to_$slot", null) ?: JSONObject.NULL).put("key", p.getInt("key_$slot", -1)))
+        }
+        return o.toString()
     }
 
     private fun toast(msg: String) {

@@ -123,6 +123,17 @@ $D shell appops set "$PKG" SYSTEM_ALERT_WINDOW allow >/dev/null 2>&1 || true
 $D shell cmd deviceidle whitelist +"$PKG" >/dev/null 2>&1 || true
 zeleno "Ekran je početni ekran i pokreće se pri paljenju TV-a"
 
+# ---- preusmjeravanje dugmadi na daljinskom (Netflix / Prime) -------------
+SVC="$PKG/$PKG.KeyService"
+CUR="$($D shell settings get secure enabled_accessibility_services 2>/dev/null | tr -d '\r')"
+case "$CUR" in
+  *"$SVC"*) ;;
+  ""|null) $D shell settings put secure enabled_accessibility_services "$SVC" >/dev/null 2>&1 || true ;;
+  *) $D shell settings put secure enabled_accessibility_services "$CUR:$SVC" >/dev/null 2>&1 || true ;;
+esac
+$D shell settings put secure accessibility_enabled 1 >/dev/null 2>&1 || true
+zeleno "Dugmad na daljinskom: preusmjeravanje uključeno (biraš u postavkama Ekrana)"
+
 # ---- 8. Ubrzanje: isključi reklame i nepotrebne pozadinske procese -------
 naslov "Ubrzavam TV (reklame i pozadinski procesi)"
 off com.google.android.tvrecommendations "preporuke i reklame"

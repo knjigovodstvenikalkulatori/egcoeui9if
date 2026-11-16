@@ -81,10 +81,18 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 .strip{display:flex;gap:30px;padding-left:var(--pad);transition:transform .5s var(--ease);will-change:transform}
 .card{flex:none;position:relative;transition:transform .32s var(--ease);cursor:pointer}
 .card .img{position:relative;width:100%;border-radius:22px;background-size:cover;background-position:center;overflow:hidden;background-color:#151821;transition:box-shadow .32s var(--ease)}
-.card .img::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 38%);opacity:0;transition:opacity .35s;pointer-events:none}
-.card.focus{transform:scale(1.1);z-index:3}
+.card .img::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;border-radius:inherit;background:linear-gradient(115deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.42) 46%,rgba(255,255,255,.08) 54%,rgba(255,255,255,0) 64%);background-size:320% 100%;background-position:130% 0;opacity:0;transition:opacity .35s;pointer-events:none}
+.card.focus{transform:perspective(1000px) scale(1.1) rotateY(var(--lean,0deg)) rotateX(var(--leanx,0deg));z-index:3}
 .card.focus .img{box-shadow:0 0 0 4px #fff,0 34px 70px rgba(0,0,0,.65)}
-.card.focus .img::after{opacity:1}
+.tilt .card.focus .img{animation:float 7s ease-in-out infinite}
+.tilt .card.focus .img::after{opacity:1;animation:sweep .9s var(--ease) both,glare 7s ease-in-out .9s infinite}
+.card.focus .img::after{opacity:.6}
+@keyframes float{0%,100%{transform:perspective(900px) rotateX(0deg) rotateY(0deg)}25%{transform:perspective(900px) rotateX(2.6deg) rotateY(-3.2deg)}50%{transform:perspective(900px) rotateX(-1.6deg) rotateY(2.6deg)}75%{transform:perspective(900px) rotateX(2deg) rotateY(1.6deg)}}
+@keyframes sweep{from{background-position:135% 0}to{background-position:-35% 0}}
+@keyframes glare{0%,100%{background-position:-35% 0;opacity:.35}50%{background-position:45% 0;opacity:.75}}
+#wx{position:absolute;top:0;left:0;width:1920px;height:1080px;pointer-events:none;z-index:3;transition:opacity .8s}
+#tod{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;transition:background 4s}
+#stage.covered #wx{opacity:0}
 .card.moving .img{box-shadow:0 0 0 4px #ffd166,0 34px 70px rgba(0,0,0,.65)!important}
 .fav{position:absolute;right:12px;top:10px;font-size:22px;color:#ffd166;text-shadow:0 2px 8px rgba(0,0,0,.6);z-index:2}
 
@@ -190,7 +198,9 @@ html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Int
 <div id="stage">
   <div class="bg" id="bgA"></div>
   <div class="bg" id="bgB"></div>
+  <div id="tod"></div>
   <div class="shade"></div>
+  <canvas id="wx" width="960" height="540"></canvas>
 
   <div class="top">
     <div class="hello"><span class="orb"></span><span id="greet">Dobro veče</span></div>
@@ -310,6 +320,9 @@ function loadSettings(){
   return s;
 }
 const saveSet=()=>store.set('settings',SET);
+function keyStatus(){if(!B||!B.keyStatus)return DEMO?{enabled:true,netflix:{to:SET._demoKeys&&SET._demoKeys.netflix},prime:{to:SET._demoKeys&&SET._demoKeys.prime}}:{enabled:false};try{return JSON.parse(B.keyStatus())}catch(e){return {enabled:false}}}
+function keyMap(slot,pkg){if(B&&B.keyMap)B.keyMap(slot,pkg||'');else{SET._demoKeys=SET._demoKeys||{};SET._demoKeys[slot]=pkg||null;saveSet()}}
+function applyLook(){document.documentElement.classList.toggle('tilt',SET.tilt!==false)}
 window.launcherConfig=()=>{SET=loadSettings();refreshAll(true);toast('Nove postavke primljene s laptopa')};
 
 /* ---------- demo slike ---------- */
@@ -429,11 +442,74 @@ async function loadWeather(){
       w={city:loc.city,t:Math.round(f.current.temperature_2m),code:f.current.weather_code,day:f.current.is_day,max:Math.round(f.daily.temperature_2m_max[0]),min:Math.round(f.daily.temperature_2m_min[0])};
     }catch(e){return}
   }
+  WXNOW={code:w.code,day:w.day};fxSet();
   let [ic,txt]=WMO(w.code);if(ic==='sun'&&!w.day)ic='moon';
   $('#wIco').innerHTML=`<svg viewBox="0 0 24 24">${WX[ic]}</svg>`;
   $('#wTemp').textContent=w.t+'°';
   $('#wDesc').textContent=`${w.city} · ${txt} · ${w.max}° / ${w.min}°`;
   $('#weather').classList.add('on');
+}
+
+/* ----- vrijeme u pozadini: kiša, snijeg, magla, zvijezde, grmljavina ----- */
+let WXNOW=null;
+const FX={ctx:null,parts:[],kind:'none',raf:0,last:0,flash:0};
+const WX_MODES=[['auto','Automatski (po vremenu napolju)'],['rain','Kiša'],['snow','Snijeg'],['storm','Grmljavina'],['fog','Magla'],['stars','Zvjezdana noć'],['off','Isključeno']];
+function wxKind(){const m=SET.wxMode||'auto';if(m==='off')return 'none';if(m!=='auto')return m;if(!WXNOW)return 'none';const c=WXNOW.code;
+  if(c>=95)return 'storm';if((c>=71&&c<=77)||c===85||c===86)return 'snow';if((c>=51&&c<=67)||(c>=80&&c<=82))return 'rain';if(c===45||c===48)return 'fog';if(c<=1&&!WXNOW.day)return 'stars';return 'none'}
+function fxNew(k,init){const R=Math.random;
+  if(k==='rain'||k==='storm')return {x:R()*1100-60,y:init?R()*540:-30-R()*200,v:10+R()*8,l:14+R()*16,a:.12+R()*.22};
+  if(k==='snow')return {x:R()*960,y:init?R()*540:-10,r:.8+R()*2.4,v:.35+R()*.9,d:R()*6.28,a:.35+R()*.5};
+  if(k==='fog')return {x:R()*960,y:260+R()*280,r:200+R()*240,v:.08+R()*.18,a:.035+R()*.045};
+  return {x:R()*960,y:R()*330,r:.5+R()*1.3,p:R()*6.28,s:.4+R()*1.6};
+}
+function fxSet(){
+  if(!FX.ctx){const c=$('#wx');if(!c||!c.getContext)return;FX.ctx=c.getContext('2d')}
+  const k=wxKind();if(k===FX.kind)return;FX.kind=k;FX.parts=[];
+  const N={rain:120,storm:150,snow:90,fog:7,stars:70}[k]||0;
+  for(let i=0;i<N;i++)FX.parts.push(fxNew(k,true));
+  FX.ctx.clearRect(0,0,960,540);
+  if(k!=='none'&&!FX.raf)FX.raf=requestAnimationFrame(fxLoop);
+}
+function fxLoop(t){
+  if(FX.kind==='none'){FX.raf=0;FX.ctx.clearRect(0,0,960,540);return}
+  FX.raf=requestAnimationFrame(fxLoop);
+  if(S.layer==='player'||S.layer==='settings'||S.layer==='grid'||document.hidden||t-FX.last<33)return;
+  FX.last=t;const c=FX.ctx,k=FX.kind;c.clearRect(0,0,960,540);
+  if(k==='rain'||k==='storm'){
+    c.lineWidth=1.1;c.lineCap='round';
+    for(const p of FX.parts){c.strokeStyle=`rgba(200,220,255,${p.a})`;c.beginPath();c.moveTo(p.x,p.y);c.lineTo(p.x-p.l*.22,p.y+p.l);c.stroke();
+      p.y+=p.v;p.x-=p.v*.22;if(p.y>560||p.x<-40)Object.assign(p,fxNew(k,false))}
+    if(k==='storm'){if(Math.random()<.004)FX.flash=1;if(FX.flash>.02){c.fillStyle=`rgba(225,232,255,${FX.flash*.22})`;c.fillRect(0,0,960,540);FX.flash*=.86}}
+  }else if(k==='snow'){
+    for(const p of FX.parts){c.fillStyle=`rgba(255,255,255,${p.a})`;c.beginPath();c.arc(p.x,p.y,p.r,0,6.283);c.fill();
+      p.y+=p.v;p.x+=Math.sin(p.d+t/1700)*.45;if(p.y>550)Object.assign(p,fxNew(k,false))}
+  }else if(k==='fog'){
+    for(const p of FX.parts){const g=c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,`rgba(220,226,240,${p.a})`);g.addColorStop(1,'rgba(220,226,240,0)');
+      c.fillStyle=g;c.fillRect(p.x-p.r,p.y-p.r,p.r*2,p.r*2);p.x+=p.v;if(p.x-p.r>960)p.x=-p.r}
+  }else if(k==='stars'){
+    for(const p of FX.parts){c.fillStyle=`rgba(255,255,255,${.25+.75*Math.abs(Math.sin(p.p+t/1000*p.s))})`;c.beginPath();c.arc(p.x,p.y,p.r,0,6.283);c.fill()}
+  }
+}
+/* doba dana: toplije ujutro, narandžasto predvečer, tamnije i plavlje noću */
+function todTint(){const h=new Date().getHours();const el=$('#tod');if(!el)return;
+  el.style.background=h>=6&&h<10?'linear-gradient(140deg,rgba(255,170,90,.13),rgba(255,170,90,0) 55%)':
+    h>=17&&h<20?'linear-gradient(210deg,rgba(255,110,60,.15),rgba(255,110,60,0) 60%)':
+    (h>=20||h<6)?'linear-gradient(180deg,rgba(20,30,80,.28),rgba(10,15,40,.18))':'none'}
+
+/* ----- diskretni zvukovi (sintetizovani, bez fajlova) ----- */
+let AC=null;
+function snd(kind){
+  if(SET.sounds===false)return;
+  try{
+    if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;AC=new C()}
+    if(AC.state==='suspended')AC.resume();
+    const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);
+    const P={move:[1700,1100,.035,.045],ok:[660,990,.09,.07],back:[700,420,.08,.055],edge:[180,140,.06,.06],open:[520,1040,.14,.06]}[kind]||[1000,800,.04,.04];
+    o.type=kind==='edge'?'triangle':'sine';
+    o.frequency.setValueAtTime(P[0],t);o.frequency.exponentialRampToValueAtTime(P[1],t+P[2]);
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(P[3],t+.006);g.gain.exponentialRampToValueAtTime(0.0001,t+P[2]+.02);
+    o.start(t);o.stop(t+P[2]+.04);
+  }catch(e){}
 }
 
 /* ----- vijesti (RSS) ----- */
@@ -774,7 +850,15 @@ function markFocus(){
   document.querySelectorAll('#stage > .top .focus, #hero .focus, #track .focus').forEach(e=>e.classList.remove('focus'));
   if(S.row===-1){$('#gear').classList.add('focus');return}
   if(S.row===0){const b=$('#hActions').children[S.btn];if(b)b.classList.add('focus');return}
-  const R=ROWS[S.row];const c=R.strip.children[curCol(R)];if(c)c.classList.add('focus');
+  const R=ROWS[S.row];const c=R.strip.children[curCol(R)];if(c){c.classList.add('focus');lean(c)}
+}
+let LAST_DIR=null;
+function lean(el){
+  if(!el||!LAST_DIR||SET.tilt===false)return;
+  const ry={left:'7deg',right:'-7deg'}[LAST_DIR]||'0deg',rx={up:'-6deg',down:'6deg'}[LAST_DIR]||'0deg';
+  el.style.setProperty('--lean',ry);el.style.setProperty('--leanx',rx);
+  setTimeout(()=>{el.style.setProperty('--lean','0deg');el.style.setProperty('--leanx','0deg')},170);
+  LAST_DIR=null;
 }
 function render(){
   if(S.layer)return LAYERS[S.layer].render();
@@ -845,11 +929,14 @@ function popLayer(){const L=LAYERS[S.layer];$('#'+L.el).classList.remove('on');L
 
 /* ----- mreža (sve aplikacije / svi kanali) ----- */
 const GR={kind:'apps',items:[],i:0,top:-1};
-function openGrid(kind){
+function openGrid(kind,pickCb){
+  GR.pickCb=null;
+  if(kind==='pick'){kind='apps';GR.pickCb=pickCb}
   GR.kind=kind;GR.i=0;GR.top=-1;
   GR.items=kind==='apps'?D.apps:liveOrdered();
   $('#gTitle').textContent=kind==='apps'?'Sve aplikacije':'TV uživo';
   $('#gSub').textContent=kind==='apps'?`${D.apps.length} instaliranih · ★ = u redu Aplikacije`:`${GR.items.length} kanala · ★ = omiljeni (prvi u redu)`;
+  if(GR.pickCb){$('#gTitle').textContent='Izaberi aplikaciju';$('#gSub').textContent='OK = izaberi'}
   pushLayer('grid');
 }
 LAYERS.grid={el:'gridL',
@@ -869,19 +956,19 @@ LAYERS.grid={el:'gridL',
       }
     }
     gr.querySelectorAll('.focus').forEach(e=>e.classList.remove('focus'));
-    const f=gr.querySelector(`[data-i="${GR.i}"]`);if(f)f.classList.add('focus');
+    const f=gr.querySelector(`[data-i="${GR.i}"]`);if(f){f.classList.add('focus');lean(f)}
     function kind(){return GR.kind}
   },
   key(k){const n=GR.items.length,c=GR.i%6;
     if(k==='right'&&c<5&&GR.i<n-1)GR.i++;else if(k==='left'&&c>0)GR.i--;
     else if(k==='down'&&GR.i+6<n)GR.i+=6;else if(k==='down'&&Math.floor(GR.i/6)<Math.floor((n-1)/6))GR.i=n-1;
     else if(k==='up'&&GR.i-6>=0)GR.i-=6;render()},
-  ok(){const it=GR.items[GR.i];if(!it)return;if(GR.kind==='apps')launchApp(it);else playLive(GR.items,GR.i)},
-  long(){const it=GR.items[GR.i];if(!it)return;
+  ok(){const it=GR.items[GR.i];if(!it)return;if(GR.pickCb){const cb=GR.pickCb;GR.pickCb=null;popLayer();cb(it);return}if(GR.kind==='apps')launchApp(it);else playLive(GR.items,GR.i)},
+  long(){const it=GR.items[GR.i];if(!it||GR.pickCb)return;
     if(GR.kind==='apps'){const on=SET.favApps.includes(it.pkg);SET.favApps=on?SET.favApps.filter(p=>p!==it.pkg):[...SET.favApps,it.pkg];saveSet();toast(on?`${it.label} uklonjen iz reda`:`${it.label} dodan u red Aplikacije ★`)}
     else toggleFavLive(it);
     GR.ver=(GR.ver||0)+1;render()},
-  close(){buildRows()}
+  close(){GR.pickCb=null;buildRows()}
 };
 
 /* ----- detalji filma ----- */
@@ -992,6 +1079,18 @@ function buildSettings(){
   it.push({h:'Vijesti'});
   Object.keys(NEWS_SRC).forEach(k=>it.push({type:'tog',l:NEWS_SRC[k].name,get:()=>SET.news[k],fn:()=>{SET.news[k]=!SET.news[k];saveSet();buildSettings();render()}}));
   it.push({type:'input',l:'Dodatni RSS',s:'Link na RSS vijesti (opcionalno)',key:'extraRss',ph:'https://…/rss'});
+  it.push({h:'Izgled i zvuk'});
+  it.push({type:'btn',l:'Vrijeme u pozadini',s:'Kiša, snijeg, magla… prema vremenu napolju',v:(WX_MODES.find(x=>x[0]===(SET.wxMode||'auto'))||WX_MODES[0])[1],fn:()=>{const i=WX_MODES.findIndex(x=>x[0]===(SET.wxMode||'auto'));SET.wxMode=WX_MODES[(i+1)%WX_MODES.length][0];saveSet();fxSet();buildSettings();render()}});
+  it.push({type:'tog',l:'3D nagib kartica',s:'Kartica se nagne i preko nje pređe odsjaj',get:()=>SET.tilt!==false,fn:()=>{SET.tilt=SET.tilt===false;saveSet();applyLook();buildSettings();render()}});
+  it.push({type:'tog',l:'Zvukovi',s:'Tihi klik pri kretanju i otvaranju',get:()=>SET.sounds!==false,fn:()=>{SET.sounds=SET.sounds===false;saveSet();snd('ok');buildSettings();render()}});
+  it.push({h:'Dugmad na daljinskom'});
+  const KS=keyStatus();
+  if(!DEMO&&!KS.enabled)it.push({type:'btn',l:'⚠️ Preusmjeravanje nije aktivno',s:'Pokreni install.sh na Macu (uključuje ga automatski)',v:'',fn:()=>{}});
+  [['netflix','Netflix dugme'],['prime','Prime Video dugme']].forEach(([slot,label])=>{
+    const cur=KS[slot]&&KS[slot].to;const app=cur&&appBy(cur);
+    it.push({type:'btn',l:label+' otvara',s:'OK = izaberi aplikaciju',v:app?app.label:(cur?cur:'(kao i do sada)'),fn:()=>openGrid('pick',a=>{keyMap(slot,a.pkg);toast(`${label} sada otvara ${a.label}`);buildSettings();render()})});
+    if(cur)it.push({type:'btn',l:label+': vrati na staro',v:'OK',fn:()=>{keyMap(slot,'');toast(`${label} radi kao i ranije`);buildSettings();render()}});
+  });
   it.push({h:'Sistem'});
   it.push({type:'btn',l:'Postavke TV-a',v:'Android postavke',fn:()=>B?B.openSystemSettings():toast('Otvaram Android postavke…')});
   it.push({type:'btn',l:'Osvježi sve',v:'Vijesti, filmovi, kanali',fn:()=>{refreshAll(true);toast('Osvježavam…')}});
@@ -1049,7 +1148,8 @@ function back(){
   if(HERO.length>1){showFeatured(0)}
   return false;
 }
-window.launcherBack=back;
+const focusSig=()=>[S.layer,S.row,S.btn,S.feat,JSON.stringify(S.col),GR.i,DT.b,MN.i,ST.i].join('|');
+window.launcherBack=()=>{const r=back();snd('back');return r};
 window.launcherMenu=()=>longPress();
 window.launcherPause=()=>{if(S.layer==='player'&&PL.yt&&PL.yt.pauseVideo){try{PL.yt.pauseVideo()}catch(e){}PL.playing=false;savePos()}};
 window.launcherResume=()=>{loadApps();if(S.layer==='grid'&&GR.kind==='apps')GR.items=D.apps;buildRows();render();if(Date.now()-lastRefresh>15*60e3)refreshAll()};
@@ -1065,13 +1165,15 @@ document.addEventListener('keydown',e=>{
   if(k==='Enter'||k===' '){e.preventDefault();
     if(e.repeat||okDown)return;
     okDown=Date.now();okLong=false;clearTimeout(okTimer);
-    okTimer=setTimeout(()=>{okLong=true;longPress()},650);
+    okTimer=setTimeout(()=>{okLong=true;snd('open');longPress()},650);
     return;
   }
-  if(k==='Escape'||k==='Backspace'||k==='GoBack'||k==='BrowserBack'){e.preventDefault();back();return}
+  if(k==='Escape'||k==='Backspace'||k==='GoBack'||k==='BrowserBack'){e.preventDefault();back();snd('back');return}
   if(k==='ContextMenu'){e.preventDefault();longPress();return}
   const d=KEYMAP[k];if(!d)return;e.preventDefault();
   $('#hint').style.opacity=0;
+  LAST_DIR=d;const sig0=focusSig();
+  setTimeout(()=>{snd(focusSig()===sig0?'edge':'move')},0);
   if(S.layer)return LAYERS[S.layer].key(d);
   if(S.moving){if(d==='left')moveApp(-1);if(d==='right')moveApp(1);return}
   if(d==='down'&&S.row<ROWS.length-1)S.row++;
@@ -1090,7 +1192,7 @@ document.addEventListener('keyup',e=>{
   if(e.key!=='Enter'&&e.key!==' ')return;
   const a=document.activeElement;if(a&&a.tagName==='INPUT')return;
   clearTimeout(okTimer);
-  if(okDown&&!okLong)activate();
+  if(okDown&&!okLong){snd('ok');activate()}
   okDown=0;okLong=false;
 });
 $('#gear').onclick=()=>{S.row=-1;render();openSettings()};
@@ -1120,6 +1222,7 @@ async function refreshAll(force){
 loadApps();buildHero();buildRows();showFeatured(0,true);render();
 refreshAll();
 setInterval(()=>loadWeather(),30*60e3);
+applyLook();todTint();fxSet();setInterval(todTint,10*60e3);
 setInterval(()=>{if(!S.layer)refreshAll()},20*60e3);
 </script>
 </body>
